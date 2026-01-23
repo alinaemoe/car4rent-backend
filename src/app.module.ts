@@ -7,6 +7,10 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { CarsModule } from './cars/cars.module';
+import { LanguagesModule } from './languages/languages.module';
+import { SettingsModule } from './settings/settings.module';
+import { TranslationsModule } from './translations/translations.module';
 
 @Module({
   imports: [
@@ -23,6 +27,10 @@ import { RolesGuard } from './auth/roles.guard';
     }),
     UsersModule,
     AuthModule,
+    CarsModule,
+    LanguagesModule,
+    SettingsModule,
+    TranslationsModule,
   ],
   controllers: [AppController],
   providers: [

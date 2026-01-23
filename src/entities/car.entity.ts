@@ -56,8 +56,13 @@ export class Car {
   @Column({ unique: true })
   vin: string;
 
-  @Column()
-  color: string;
+  // 👇 ИСПРАВЛЕНО: JSONB объект для цвета { ru: "...", en: "..." }
+  @Column({ type: 'jsonb' })
+  color: Record<string, string>;
+
+  // 👇 ДОБАВЛЕНО: JSONB объект для описания { ru: "...", en: "..." }
+  @Column({ type: 'jsonb', nullable: true })
+  description: Record<string, string>;
 
   @Column({ type: 'enum', enum: CarStatus, default: CarStatus.AVAILABLE })
   status: CarStatus;
@@ -81,23 +86,20 @@ export class Car {
   @Column({ default: 0 })
   current_mileage: number;
 
-  // COMMUNICATIONS
-
-  // Owner (If NULL - company car)
+  // СВЯЗИ
   @ManyToOne(() => User, (user) => user.my_cars, { nullable: true })
   @JoinColumn({ name: 'owner_id' })
-  owner: User;
+  owner: User | null; // Разрешаем null для TypeScript
 
-  // Where is it worth
   @ManyToOne(() => Location, { nullable: true })
   @JoinColumn({ name: 'location_id' })
-  location: Location;
+  location: Location | null; // Разрешаем null для TypeScript
 
   @OneToMany(() => CarImage, (image) => image.car)
   images: CarImage[];
 
   @ManyToMany(() => Feature)
-  @JoinTable({ name: 'car_features' }) // The connection table will be created automatically.
+  @JoinTable({ name: 'car_features' })
   features: Feature[];
 
   @OneToMany(() => Rental, (rental) => rental.car)
