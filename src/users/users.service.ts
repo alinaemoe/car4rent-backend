@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DeepPartial } from 'typeorm';
 import * as bcrypt from 'bcrypt'; // Import bcrypt
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -54,16 +54,31 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
+    if (updateUserDto.password) {
+      const salt = await bcrypt.genSalt();
+      updateUserDto.password = await bcrypt.hash(updateUserDto.password, salt);
+    }
+
+    const { password, ...otherData } = updateUserDto;
+
+    const updateData: DeepPartial<User> = { ...otherData };
+
+    if (password) {
+      updateData.password_hash = password; // тут тоже password — уже захеширован
+    }
+
     const user = await this.usersRepository.preload({
       id,
-      ...updateUserDto,
+      ...updateData,
     });
 
     if (!user) {
-      throw new NotFoundException(`User with id ${id} not found`);
+      throw new Error(`User with id ${id} not found`);
     }
 
-    return this.usersRepository.save(user);
+    const savedUser = await this.usersRepository.save(user);
+    const { password_hash: _, ...result } = savedUser;
+    return result;
   }
 
   async remove(id: string) {

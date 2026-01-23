@@ -35,7 +35,7 @@ export class CarDamage {
   image_url: string;
 
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
-  repair_cost: number; // Сколько выставили клиенту
+  repair_cost: number; // How much did you charge the customer?
 
   @Column({ default: false })
   is_paid: boolean;
