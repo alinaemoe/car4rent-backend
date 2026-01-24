@@ -11,6 +11,7 @@ import { CarsModule } from './cars/cars.module';
 import { LanguagesModule } from './languages/languages.module';
 import { SettingsModule } from './settings/settings.module';
 import { TranslationsModule } from './translations/translations.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { TranslationsModule } from './translations/translations.module';
     LanguagesModule,
     SettingsModule,
     TranslationsModule,
+    CloudinaryModule,
   ],
   controllers: [AppController],
   providers: [

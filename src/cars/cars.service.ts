@@ -4,12 +4,14 @@ import { Repository, DeepPartial } from 'typeorm';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
 import { Car } from '../entities/car.entity';
+import { CarImage } from 'src/entities/car-image.entity';
 
 @Injectable()
 export class CarsService {
   constructor(
-    @InjectRepository(Car)
-    private readonly carsRepository: Repository<Car>,
+    @InjectRepository(Car) private readonly carsRepository: Repository<Car>,
+    @InjectRepository(CarImage) // 👈 Инжектим репозиторий картинок
+    private readonly imagesRepository: Repository<CarImage>,
   ) {}
 
   async create(createCarDto: CreateCarDto) {
@@ -75,5 +77,17 @@ export class CarsService {
       throw new NotFoundException(`Car with ID ${id} not found`);
     }
     return { message: 'Car deleted successfully' };
+  }
+
+  async uploadCarImage(carId: number, url: string) {
+    const car = await this.findOne(carId); // Проверяем, есть ли машина
+
+    const image = this.imagesRepository.create({
+      url: url,
+      car: car, // Привязываем к машине
+      is_main: false, // Логику главной картинки можно докрутить потом
+    });
+
+    return await this.imagesRepository.save(image);
   }
 }

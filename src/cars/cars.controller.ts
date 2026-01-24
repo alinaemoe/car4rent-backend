@@ -7,17 +7,24 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CarsService } from './cars.service';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../entities/user.entity';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Controller('cars')
 export class CarsController {
-  constructor(private readonly carsService: CarsService) {}
+  constructor(
+    private readonly carsService: CarsService,
+    private readonly cloudinaryService: CloudinaryService, // 👈 Инжектим сервис
+  ) {}
 
   // 1. СОЗДАНИЕ: Только Админ (или Менеджер)
   @Post()
@@ -33,15 +40,12 @@ export class CarsController {
     return this.carsService.findAll();
   }
 
-  // 3. ОДНА МАШИНА: Публично
   @Public()
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    // ParseIntPipe превращает "123" в число 123
     return this.carsService.findOne(id);
   }
 
-  // 4. ОБНОВЛЕНИЕ: Только Админ/Менеджер
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   update(
@@ -56,5 +60,19 @@ export class CarsController {
   @Roles(UserRole.ADMIN)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.carsService.remove(id);
+  }
+
+  @Post(':id/images')
+  @Roles(UserRole.ADMIN) // Только админ грузит фото
+  @UseInterceptors(FileInterceptor('file')) // 'file' - имя поля в Form-Data
+  async uploadImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    // 1. Загружаем в облако
+    const imageUrl = await this.cloudinaryService.uploadImage(file);
+
+    // 2. Сохраняем ссылку в БД
+    return this.carsService.uploadCarImage(id, imageUrl);
   }
 }
