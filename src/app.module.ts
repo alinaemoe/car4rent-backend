@@ -15,6 +15,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { RentalsModule } from './rentals/rentals.module';
 import { RentalLeadsModule } from './rental-leads/rental-leads.module';
 import { PartnershipRequestsModule } from './partnership-requests/partnership-requests.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { PartnershipRequestsModule } from './partnership-requests/partnership-re
     RentalsModule,
     RentalLeadsModule,
     PartnershipRequestsModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [

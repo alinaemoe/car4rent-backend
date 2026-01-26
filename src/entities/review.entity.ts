@@ -16,7 +16,7 @@ export class Review {
   id: number;
 
   @Column({ type: 'int' })
-  rating: number; // 1-5
+  rating: number | null; // 1-5
 
   @Column('text')
   comment: string;
@@ -27,7 +27,7 @@ export class Review {
 
   @ManyToOne(() => Car, (car) => car.reviews, { nullable: true })
   @JoinColumn({ name: 'car_id' })
-  car: Car;
+  car: Car | null;
 
   @ManyToOne(() => Rental, (rental) => rental.reviews, { nullable: true })
   @JoinColumn({ name: 'rental_id' })
