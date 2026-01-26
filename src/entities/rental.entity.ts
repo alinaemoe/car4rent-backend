@@ -75,7 +75,7 @@ export class Rental {
   penalty_price: number; // Penalties + Overtime
 
   @Column('decimal', { precision: 10, scale: 2, nullable: true })
-  total_price: number; // Result
+  total_price: number | null;
 
   // Connections
   @OneToMany(() => CarDamage, (damage) => damage.rental)

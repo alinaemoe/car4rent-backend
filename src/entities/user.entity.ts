@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { UserDocument } from './user-document.entity';
 import { Rental } from './rental.entity';
 import { Car } from './car.entity';
@@ -33,6 +34,7 @@ export class User {
   email: string;
 
   @Column({ nullable: true }) // A password may not be required for quick registration, but is usually necessary.
+  @Exclude()
   password_hash: string;
 
   @Column()

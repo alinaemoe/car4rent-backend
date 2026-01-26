@@ -12,6 +12,7 @@ import { LanguagesModule } from './languages/languages.module';
 import { SettingsModule } from './settings/settings.module';
 import { TranslationsModule } from './translations/translations.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { RentalsModule } from './rentals/rentals.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     SettingsModule,
     TranslationsModule,
     CloudinaryModule,
+    RentalsModule,
   ],
   controllers: [AppController],
   providers: [

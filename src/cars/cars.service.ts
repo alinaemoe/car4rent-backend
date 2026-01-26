@@ -5,6 +5,7 @@ import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
 import { Car } from '../entities/car.entity';
 import { CarImage } from 'src/entities/car-image.entity';
+import { CarStatus } from '../entities/car.entity';
 
 @Injectable()
 export class CarsService {
@@ -89,5 +90,13 @@ export class CarsService {
     });
 
     return await this.imagesRepository.save(image);
+  }
+
+  async updateMileageAndStatus(id: number, mileage: number, statusStr: string) {
+    const car = await this.findOne(id);
+    car.current_mileage = mileage;
+    car.status = CarStatus.AVAILABLE;
+
+    return this.carsRepository.save(car);
   }
 }

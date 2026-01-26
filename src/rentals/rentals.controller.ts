@@ -1,0 +1,59 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Request,
+  ParseIntPipe,
+} from '@nestjs/common';
+import { RentalsService } from './rentals.service';
+import { CreateRentalDto } from './dto/create-rental.dto';
+import { FinishRentalDto } from './dto/finish-rental.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../entities/user.entity';
+import { RentalStatus } from '../entities/rental.entity';
+
+@Controller('rentals')
+export class RentalsController {
+  constructor(private readonly rentalsService: RentalsService) {}
+
+  // 1. Забронировать (Может любой авторизованный юзер)
+  @Post()
+  create(@Request() req, @Body() createRentalDto: CreateRentalDto) {
+    return this.rentalsService.create(req.user, createRentalDto); // req.user приходит из JWT Guard
+  }
+
+  // 2. Посмотреть мои поездки
+  @Get('my')
+  findMyRentals(@Request() req) {
+    return this.rentalsService.findMyRentals(req.user.userId);
+  }
+
+  // 3. Админ: Все поездки
+  @Get()
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  findAll() {
+    return this.rentalsService.findAll();
+  }
+
+  // 4. Админ: Одобрить/Отклонить/Завершить
+  @Patch(':id/status')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('status') status: RentalStatus,
+  ) {
+    return this.rentalsService.updateStatus(id, status);
+  }
+
+  @Post(':id/finish')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  finish(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() finishDto: FinishRentalDto,
+  ) {
+    return this.rentalsService.finish(id, finishDto);
+  }
+}
