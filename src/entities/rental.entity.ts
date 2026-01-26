@@ -51,6 +51,12 @@ export class Rental {
   @Column({ type: 'timestamp', nullable: true })
   actual_return_date: Date;
 
+  @Column({ type: 'int', default: 100 })
+  start_fuel: number; // How much was issued (usually 100%)
+
+  @Column({ type: 'int', nullable: true })
+  end_fuel: number;
+
   // LOCATIONS (Where you took it from, where you returned it)
   @ManyToOne(() => Location)
   @JoinColumn({ name: 'pick_up_location_id' })

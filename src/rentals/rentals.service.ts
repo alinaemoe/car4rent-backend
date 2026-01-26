@@ -2,14 +2,16 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThanOrEqual, MoreThanOrEqual, In } from 'typeorm';
 import { CreateRentalDto } from './dto/create-rental.dto';
 import { FinishRentalDto } from './dto/finish-rental.dto';
+import { StartRentalDto } from './dto/start-rental.dto';
 import { Rental, RentalStatus } from '../entities/rental.entity';
 import { CarsService } from '../cars/cars.service';
-import { User } from '../entities/user.entity';
+import { UserRole } from '../entities/user.entity';
 import { CarStatus } from '../entities/car.entity';
 
 @Injectable()
@@ -145,6 +147,72 @@ export class RentalsService {
     return await this.rentalRepository.save(rental);
   }
 
+  // 🚀 START OF LEASE (Key handover)
+  async startRental(id: number, startDto: StartRentalDto) {
+    const rental = await this.rentalRepository.findOne({
+      where: { id },
+      relations: ['car'],
+    });
+
+    if (!rental) throw new NotFoundException('Аренда не найдена');
+
+    // You can only start with APPROVED or CREATED (if immediately at the counter)
+    if (
+      rental.status !== RentalStatus.APPROVED &&
+      rental.status !== RentalStatus.CREATED
+    ) {
+      throw new BadRequestException(
+        'Нельзя начать эту аренду (статус не подходит)',
+      );
+    }
+
+    // We capture reality
+    rental.start_mileage = rental.car.current_mileage; // We take the mileage from the car.
+    rental.start_fuel = startDto.start_fuel; // Fuel writes manager
+    rental.status = RentalStatus.ACTIVE;
+
+    await this.carsService.updateMileageAndStatus(
+      rental.car.id,
+      rental.car.current_mileage,
+      CarStatus.RENTED,
+    );
+
+    return await this.rentalRepository.save(rental);
+  }
+
+  async cancel(id: number, userId: string, roles: UserRole[]) {
+    const rental = await this.rentalRepository.findOne({
+      where: { id },
+      relations: ['user', 'car'], // Load the user for rights verification and the machine for status change
+    });
+
+    if (!rental) {
+      throw new NotFoundException('Rental not found');
+    }
+
+    const isAdmin = roles.includes(UserRole.ADMIN);
+    const isOwner = rental.user.id === userId;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You are not allowed to cancel this rental');
+    }
+
+    if (
+      rental.status === RentalStatus.ACTIVE ||
+      rental.status === RentalStatus.COMPLETED
+    ) {
+      throw new BadRequestException('The trip has already started or ended');
+    }
+
+    if (rental.status === RentalStatus.CANCELED) {
+      return rental;
+    }
+
+    rental.status = RentalStatus.CANCELED;
+
+    return await this.rentalRepository.save(rental);
+  }
+
   async finish(id: number, finishDto: FinishRentalDto) {
     const rental = await this.rentalRepository.findOne({
       where: { id },
@@ -160,12 +228,21 @@ export class RentalsService {
       throw new BadRequestException('Only active rentals can be completed.');
     }
 
-    const { end_mileage } = finishDto;
-    const now = new Date();
+    const { end_mileage, actual_return_date, end_fuel } = finishDto;
 
-    // 1. Пробег
-    // Если start_mileage не был записан при выдаче, считаем его равным текущему пробегу авто до аренды
-    // Но лучше при выдаче (start) его фиксировать. Пока допустим, что current_mileage у авто актуален.
+    // 👇 TIME LOGIC: Take from DTO or current
+    const returnDate = actual_return_date
+      ? new Date(actual_return_date)
+      : new Date();
+
+    if (returnDate < rental.start_date) {
+      throw new BadRequestException(
+        'The return date cannot be earlier than the start date of the rental.',
+      );
+    }
+
+    // 1. Mileage
+    // Important point: start_mileage must be recorded at the time of issue (see below)
     const startMileage = rental.start_mileage || rental.car.current_mileage;
 
     if (end_mileage < startMileage) {
@@ -174,47 +251,43 @@ export class RentalsService {
       );
     }
 
-    const distanceDriven = end_mileage - startMileage;
-
-    // 2. Расчет дней аренды (фактический)
-    // base_days - на сколько договаривались
-    // actual_days - сколько проездили по факту (округляем вверх до часов/суток)
-    // Для простоты считаем разницу дат.
-
-    // 3. Лимиты и Штрафы
     let penalty = 0;
 
-    // А. Штраф за перепробег
-    // Лимит на всю поездку = Лимит в день * Кол-во планируемых дней
     const plannedDays = this.calculateDays(rental.start_date, rental.end_date);
     const totalLimit = rental.car.mileage_limit_per_day * plannedDays;
+    const distanceDriven =
+      end_mileage - (rental.start_mileage || rental.car.current_mileage);
 
     if (distanceDriven > totalLimit) {
-      const overLimitKm = distanceDriven - totalLimit;
-      // car.price_per_km_over_limit хранит цену штрафа за км (у нас 1.0 по дефолту)
-      penalty += overLimitKm * rental.car.price_per_km_over_limit;
+      penalty +=
+        (distanceDriven - totalLimit) * rental.car.price_per_km_over_limit;
     }
 
-    // Б. Штраф за опоздание (Overdue)
-    if (now > rental.end_date) {
-      // Логика штрафа за время: например, двойной тариф за каждый лишний день
-      const overdueDays = this.calculateDays(rental.end_date, now);
-      penalty += overdueDays * (rental.car.price_per_day * 2); // Штраф x2
+    // B. Penalty for late return (Overdue)
+    // Compare returnDate (actual) with rental.end_date (planned)
+    if (returnDate > rental.end_date) {
+      const overdueDays = this.calculateDays(rental.end_date, returnDate);
+      // For example, penalty: daily rate * 2
+      penalty += overdueDays * (rental.car.price_per_day * 2);
     }
 
-    // 4. Обновляем данные
-    rental.actual_return_date = now;
+    // B. ⛽️ FUEL PENALTY (New logic)
+    // Let's say: 1% shortage = 2 y.e. (or you can take it from the settings)
+    const FUEL_PENALTY_PER_PERCENT = 2.0;
+
+    if (end_fuel < rental.start_fuel) {
+      const missingFuel = rental.start_fuel - end_fuel;
+      penalty += missingFuel * FUEL_PENALTY_PER_PERCENT;
+    }
+
+    rental.end_fuel = end_fuel;
     rental.end_mileage = end_mileage;
+    rental.actual_return_date = new Date(actual_return_date || new Date());
     rental.penalty_price = penalty;
-
-    // ИТОГОВАЯ ЦЕНА = Базовая + Штрафы
-    // Обрати внимание: base_price у нас string/decimal, надо привести к числу
     rental.total_price = Number(rental.base_price) + penalty;
-
     rental.status = RentalStatus.COMPLETED;
 
-    // 5. Важно! Обновляем пробег у самой машины и ставим статус AVAILABLE
-    // Чтобы следующая аренда знала новый пробег
+    // 5. Updating the machine
     await this.carsService.updateMileageAndStatus(
       rental.car.id,
       end_mileage,
