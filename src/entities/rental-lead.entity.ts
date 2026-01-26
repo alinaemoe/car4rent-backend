@@ -28,7 +28,7 @@ export class RentalLead {
   // If the user has selected a specific machine on the website (but this is not mandatory)
   @ManyToOne(() => Car, { nullable: true })
   @JoinColumn({ name: 'car_id' })
-  car: Car;
+  car: Car | null;
 
   @Column({ type: 'timestamp', nullable: true })
   start_date: Date;

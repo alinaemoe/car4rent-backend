@@ -22,7 +22,7 @@ export class PartnershipRequest {
   // If the application is submitted by a registered user
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user: User | null;
 
   @Column()
   owner_name: string;

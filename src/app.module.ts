@@ -13,6 +13,8 @@ import { SettingsModule } from './settings/settings.module';
 import { TranslationsModule } from './translations/translations.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { RentalsModule } from './rentals/rentals.module';
+import { RentalLeadsModule } from './rental-leads/rental-leads.module';
+import { PartnershipRequestsModule } from './partnership-requests/partnership-requests.module';
 
 @Module({
   imports: [
@@ -35,6 +37,8 @@ import { RentalsModule } from './rentals/rentals.module';
     TranslationsModule,
     CloudinaryModule,
     RentalsModule,
+    RentalLeadsModule,
+    PartnershipRequestsModule,
   ],
   controllers: [AppController],
   providers: [
