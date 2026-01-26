@@ -37,7 +37,7 @@ export class UserDocument {
   status: DocStatus;
 
   @Column({ type: 'text', nullable: true })
-  rejection_reason: string;
+  rejection_reason: string | null;
 
   @ManyToOne(() => User, (user) => user.documents)
   @JoinColumn({ name: 'user_id' })

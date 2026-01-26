@@ -16,6 +16,7 @@ import { RentalsModule } from './rentals/rentals.module';
 import { RentalLeadsModule } from './rental-leads/rental-leads.module';
 import { PartnershipRequestsModule } from './partnership-requests/partnership-requests.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { UserDocumentsModule } from './user-documents/user-documents.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     RentalLeadsModule,
     PartnershipRequestsModule,
     ReviewsModule,
+    UserDocumentsModule,
   ],
   controllers: [AppController],
   providers: [
