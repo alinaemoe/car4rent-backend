@@ -4,10 +4,13 @@ import toStream from 'buffer-to-stream';
 
 @Injectable()
 export class CloudinaryService {
-  uploadImage(file: Express.Multer.File): Promise<string> {
+  uploadImage(
+    file: Express.Multer.File,
+    folder: string = 'car4rent_cars',
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       const upload = cloudinary.uploader.upload_stream(
-        { folder: 'car4rent_cars' },
+        { folder: folder },
         (error, result) => {
           if (error instanceof Error) {
             reject(error);

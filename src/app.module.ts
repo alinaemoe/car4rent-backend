@@ -17,6 +17,7 @@ import { RentalLeadsModule } from './rental-leads/rental-leads.module';
 import { PartnershipRequestsModule } from './partnership-requests/partnership-requests.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UserDocumentsModule } from './user-documents/user-documents.module';
+import { CarDamagesModule } from './car-damages/car-damages.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { UserDocumentsModule } from './user-documents/user-documents.module';
     PartnershipRequestsModule,
     ReviewsModule,
     UserDocumentsModule,
+    CarDamagesModule,
   ],
   controllers: [AppController],
   providers: [

@@ -10,6 +10,7 @@ import { CreateRentalDto } from './dto/create-rental.dto';
 import { FinishRentalDto } from './dto/finish-rental.dto';
 import { StartRentalDto } from './dto/start-rental.dto';
 import { Rental, RentalStatus } from '../entities/rental.entity';
+import { CarDamage } from 'src/entities/car-damage.entity';
 import { CarsService } from '../cars/cars.service';
 import { UserRole } from '../entities/user.entity';
 import { CarStatus } from '../entities/car.entity';
@@ -17,8 +18,9 @@ import { CarStatus } from '../entities/car.entity';
 @Injectable()
 export class RentalsService {
   constructor(
-    @InjectRepository(Rental)
-    private rentalRepository: Repository<Rental>,
+    @InjectRepository(Rental) private rentalRepository: Repository<Rental>,
+    @InjectRepository(CarDamage)
+    private damageRepository: Repository<CarDamage>,
     private carsService: CarsService,
   ) {}
 
@@ -154,7 +156,7 @@ export class RentalsService {
       relations: ['car'],
     });
 
-    if (!rental) throw new NotFoundException('Аренда не найдена');
+    if (!rental) throw new NotFoundException('No rentals found');
 
     // You can only start with APPROVED or CREATED (if immediately at the counter)
     if (
@@ -162,7 +164,7 @@ export class RentalsService {
       rental.status !== RentalStatus.CREATED
     ) {
       throw new BadRequestException(
-        'Нельзя начать эту аренду (статус не подходит)',
+        'This rental cannot be started (status is not suitable).',
       );
     }
 
@@ -228,7 +230,8 @@ export class RentalsService {
       throw new BadRequestException('Only active rentals can be completed.');
     }
 
-    const { end_mileage, actual_return_date, end_fuel } = finishDto;
+    // 👇 We retrieve damages from DTO
+    const { end_mileage, actual_return_date, end_fuel, damages } = finishDto;
 
     // 👇 TIME LOGIC: Take from DTO or current
     const returnDate = actual_return_date
@@ -278,6 +281,25 @@ export class RentalsService {
     if (end_fuel < rental.start_fuel) {
       const missingFuel = rental.start_fuel - end_fuel;
       penalty += missingFuel * FUEL_PENALTY_PER_PERCENT;
+    }
+
+    // 💥 DAMAGES LOGIC
+    if (damages && damages.length > 0) {
+      for (const dmgDto of damages) {
+        penalty += dmgDto.repair_cost;
+
+        const damageEntity = this.damageRepository.create({
+          rental: rental,
+          car: rental.car,
+          type: dmgDto.type,
+          description: dmgDto.description,
+          repair_cost: dmgDto.repair_cost,
+          image_url: dmgDto.image_url,
+          is_paid: false,
+        });
+
+        await this.damageRepository.save(damageEntity);
+      }
     }
 
     rental.end_fuel = end_fuel;

@@ -7,6 +7,7 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 import { Rental } from './rental.entity';
+import { Car } from './car.entity';
 
 export enum DamageType {
   SCRATCH = 'SCRATCH',
@@ -25,6 +26,10 @@ export class CarDamage {
   @JoinColumn({ name: 'rental_id' })
   rental: Rental;
 
+  @ManyToOne(() => Car)
+  @JoinColumn({ name: 'car_id' })
+  car: Car;
+
   @Column({ type: 'enum', enum: DamageType })
   type: DamageType;
 
@@ -35,7 +40,7 @@ export class CarDamage {
   image_url: string;
 
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
-  repair_cost: number; // How much did you charge the customer?
+  repair_cost: number;
 
   @Column({ default: false })
   is_paid: boolean;
