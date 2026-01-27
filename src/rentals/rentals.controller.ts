@@ -8,6 +8,7 @@ import {
   Request,
   ParseIntPipe,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RentalsService } from './rentals.service';
 import { CreateRentalDto } from './dto/create-rental.dto';
 import { FinishRentalDto } from './dto/finish-rental.dto';
@@ -15,6 +16,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../entities/user.entity';
 import { RentalStatus } from '../entities/rental.entity';
 
+@ApiTags('Rentals') // Grouping in Swagger (for aesthetics)
+@ApiBearerAuth('JWT-auth') // 👈 IMPORTANT: The name must match the one in main.ts.
 @Controller('rentals')
 export class RentalsController {
   constructor(private readonly rentalsService: RentalsService) {}

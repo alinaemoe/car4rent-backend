@@ -1,6 +1,7 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -10,9 +11,32 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      stopAtFirstError: true, //one per field
     }),
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.enableCors();
+  const config = new DocumentBuilder()
+    .setTitle('Car4Rent API')
+    .setDescription('API documentation')
+    .setVersion('1.0')
+    // 👇 ВОТ ТАК НАСТРАИВАЕМ АВТОРИЗАЦИЮ
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth', // 👈 Это имя ключа, запомни его, оно нужно в контроллерах
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap().catch((err) => {
