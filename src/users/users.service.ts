@@ -21,10 +21,12 @@ export class UsersService {
 
     const user = this.usersRepository.create({
       email: createUserDto.email,
-      password_hash: hash, // Save the HASH, not the password
-      first_name: createUserDto.firstName,
-      last_name: createUserDto.lastName,
+      password_hash: hash, // сохраняем хэш пароля
+      first_name: createUserDto.first_name,
+      last_name: createUserDto.last_name,
       phone: createUserDto.phone,
+      is_verified: createUserDto.is_verified ?? false,
+      admin_comment: createUserDto.admin_comment ?? undefined,
     });
 
     const savedUser = await this.usersRepository.save(user);
