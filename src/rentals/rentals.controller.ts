@@ -7,7 +7,11 @@ import {
   Param,
   Request,
   ParseIntPipe,
+  Query,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
+
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RentalsService } from './rentals.service';
 import { CreateRentalDto } from './dto/create-rental.dto';
@@ -37,8 +41,21 @@ export class RentalsController {
   // 3. Админ: Все поездки
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  findAll() {
-    return this.rentalsService.findAll();
+  async findAll(
+    @Query('userId') userId: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const rentals = await this.rentalsService.findAll(userId);
+
+    // Устанавливаем заголовки
+    res.setHeader('X-Total-Count', rentals.length.toString());
+    res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
+
+    // Возвращаем обёрнутый объект с data и total
+    return {
+      data: rentals,
+      total: rentals.length,
+    };
   }
 
   // 4. Админ: Одобрить/Отклонить/Завершить

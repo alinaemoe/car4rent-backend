@@ -134,9 +134,12 @@ export class RentalsService {
     });
   }
 
-  async findAll() {
+  async findAll(userId?: string) {
+    const whereCondition = userId ? { user: { id: userId } } : {};
+
     return this.rentalRepository.find({
-      relations: ['user', 'car'],
+      where: whereCondition,
+      relations: ['user', 'car', 'car.images'],
       order: { created_at: 'DESC' },
     });
   }
