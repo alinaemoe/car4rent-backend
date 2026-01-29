@@ -8,6 +8,7 @@ import {
   UseGuards,
   Request,
   Get,
+  Query,
 } from '@nestjs/common';
 import { UserDocumentsService } from './user-documents.service';
 import { CreateDocumentDto } from './dto/create-user-document.dto';
@@ -19,6 +20,12 @@ import { UserRole } from '../entities/user.entity';
 @UseGuards(JwtAuthGuard)
 export class UserDocumentsController {
   constructor(private readonly service: UserDocumentsService) {}
+
+  @Get()
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  findAll(@Query('userId') userId?: string) {
+    return this.service.findAll(userId);
+  }
 
   @Post('upload')
   upload(@Request() req, @Body() dto: CreateDocumentDto) {

@@ -22,6 +22,15 @@ export class UserDocumentsService {
     private userRepo: Repository<User>,
   ) {}
 
+  async findAll(userId?: string) {
+    const whereCondition = userId ? { user: { id: userId } } : {};
+
+    return this.docRepo.find({
+      where: whereCondition,
+      order: { created_at: 'DESC' },
+    });
+  }
+
   async upload(userId: string, dto: CreateDocumentDto) {
     // Checking for duplicates
     const existing = await this.docRepo.findOne({
