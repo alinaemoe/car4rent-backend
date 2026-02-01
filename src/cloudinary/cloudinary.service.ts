@@ -29,4 +29,17 @@ export class CloudinaryService {
       toStream(file.buffer).pipe(upload);
     });
   }
+
+  async deleteImage(publicId: string): Promise<any> {
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.destroy(publicId, (error, result) => {
+        if (error) {
+          // eslint рекомендует reject(new Error(...)), чтобы всегда передавать Error
+          reject(new Error(error.message || 'Unknown error'));
+          return;
+        }
+        resolve(result);
+      });
+    });
+  }
 }

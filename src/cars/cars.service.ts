@@ -6,6 +6,7 @@ import { UpdateCarDto } from './dto/update-car.dto';
 import { Car } from '../entities/car.entity';
 import { CarImage } from 'src/entities/car-image.entity';
 import { CarStatus } from '../entities/car.entity';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
 export class CarsService {
@@ -13,6 +14,7 @@ export class CarsService {
     @InjectRepository(Car) private readonly carsRepository: Repository<Car>,
     @InjectRepository(CarImage) // 👈 Инжектим репозиторий картинок
     private readonly imagesRepository: Repository<CarImage>,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
   async create(createCarDto: CreateCarDto) {
@@ -97,9 +99,32 @@ export class CarsService {
     });
     if (!image) throw new NotFoundException('Image not found');
 
-    // Тут по-хорошему надо бы еще удалить файл из Cloudinary,
-    // но пока просто удалим запись из базы, чтобы не усложнять.
+    // 1. Пытаемся удалить из Cloudinary
+    try {
+      const publicId = this.extractPublicIdFromUrl(image.url);
+      if (publicId) {
+        await this.cloudinaryService.deleteImage(publicId);
+      }
+    } catch (error) {
+      console.error('Failed to delete image from Cloudinary:', error);
+    }
+
+    // 2. Удаляем запись из БД
     return await this.imagesRepository.remove(image);
+  }
+
+  // 👇 Auxiliary method: Parses the URL and extracts the ID
+  // Example URL: https://res.cloudinary.com/demo/image/upload/v123456/car4rent_cars/my_car.jpg
+  // We need to extract: car4rent_cars/my_car
+  private extractPublicIdFromUrl(url: string): string | null {
+    try {
+      const regex = /\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/;
+      const match = url.match(regex);
+      return match ? match[1] : null;
+    } catch (e) {
+      console.error('Error extracting public_id', e);
+      return null;
+    }
   }
 
   async updateMileageAndStatus(id: number, mileage: number, statusStr: string) {
