@@ -75,4 +75,10 @@ export class CarsController {
     // 2. Сохраняем ссылку в БД
     return this.carsService.uploadCarImage(id, imageUrl);
   }
+
+  @Delete('images/:id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  removeImage(@Param('id', ParseIntPipe) id: number) {
+    return this.carsService.removeImage(id);
+  }
 }

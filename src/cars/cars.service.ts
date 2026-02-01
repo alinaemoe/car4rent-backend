@@ -91,6 +91,16 @@ export class CarsService {
 
     return await this.imagesRepository.save(image);
   }
+  async removeImage(imageId: number) {
+    const image = await this.imagesRepository.findOne({
+      where: { id: imageId },
+    });
+    if (!image) throw new NotFoundException('Image not found');
+
+    // Тут по-хорошему надо бы еще удалить файл из Cloudinary,
+    // но пока просто удалим запись из базы, чтобы не усложнять.
+    return await this.imagesRepository.remove(image);
+  }
 
   async updateMileageAndStatus(id: number, mileage: number, statusStr: string) {
     const car = await this.findOne(id);
