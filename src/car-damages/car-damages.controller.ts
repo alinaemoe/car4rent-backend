@@ -9,12 +9,15 @@ import {
   UploadedFile,
   UseGuards,
   BadRequestException,
+  Delete,
+  Body,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CarDamagesService } from './car-damages.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../entities/user.entity';
+import { CreateCarDamageDto } from './dto/create-car-damage.dto';
 
 @Controller('car-damages')
 @UseGuards(JwtAuthGuard)
@@ -44,5 +47,15 @@ export class CarDamagesController {
   @Patch(':id/pay')
   markAsPaid(@Param('id', ParseIntPipe) id: number) {
     return this.service.markAsPaid(id);
+  }
+
+  @Post()
+  create(@Body() dto: CreateCarDamageDto) {
+    return this.service.create(dto);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.service.remove(id);
   }
 }

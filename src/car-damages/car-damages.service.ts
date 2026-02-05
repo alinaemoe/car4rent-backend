@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CarDamage } from '../entities/car-damage.entity';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { CreateCarDamageDto } from './dto/create-car-damage.dto';
 
 @Injectable()
 export class CarDamagesService {
@@ -37,5 +38,24 @@ export class CarDamagesService {
 
     damage.is_paid = true;
     return await this.repo.save(damage);
+  }
+
+  async create(dto: CreateCarDamageDto) {
+    const damage = this.repo.create({
+      type: dto.type,
+      description: dto.description,
+      repair_cost: dto.repair_cost,
+      image_url: dto.image_url,
+      is_paid: false,
+      car: { id: dto.carId },
+      rental: dto.rentalId ? { id: dto.rentalId } : undefined,
+    });
+    return await this.repo.save(damage);
+  }
+
+  async remove(id: number) {
+    const damage = await this.repo.findOne({ where: { id } });
+    if (!damage) throw new NotFoundException('Damage not found');
+    return await this.repo.remove(damage);
   }
 }
