@@ -18,17 +18,7 @@ export class CarsService {
   ) {}
 
   async create(createCarDto: CreateCarDto) {
-    // Магия TypeORM: если мы передадим location: { id: 5 }, он сам свяжет.
-    // Но так как у нас в DTO поле называется location_id, надо перемапить.
-
-    const { location_id, ...carData } = createCarDto;
-
-    const car = this.carsRepository.create({
-      ...carData,
-      location: location_id ? { id: location_id } : null,
-      // owner: null - по умолчанию машина компании
-    });
-
+    const car = this.carsRepository.create(createCarDto);
     return await this.carsRepository.save(car);
   }
 
@@ -53,18 +43,9 @@ export class CarsService {
   }
 
   async update(id: number, updateCarDto: UpdateCarDto) {
-    const { location_id, ...carData } = updateCarDto;
-
-    // DeepPartial позволяет обновлять вложенные структуры (включая jsonb поля)
-    const updatePayload: DeepPartial<Car> = { ...carData };
-
-    if (location_id) {
-      updatePayload.location = { id: location_id };
-    }
-
     const car = await this.carsRepository.preload({
       id: id,
-      ...updatePayload,
+      ...updateCarDto,
     });
 
     if (!car) {

@@ -7,7 +7,8 @@ import {
   IsPositive,
   IsString,
   Min,
-  IsObject, // 👈 Импортируем валидатор объекта
+  IsObject,
+  IsArray,
 } from 'class-validator';
 import { CarStatus, FuelType, Transmission } from '../../entities/car.entity';
 
@@ -32,15 +33,13 @@ export class CreateCarDto {
   @IsNotEmpty()
   vin: string;
 
-  // 👇 ТЕПЕРЬ ЭТО ОБЪЕКТ
   @IsObject()
   @IsNotEmpty()
-  color: Record<string, string>; // Ожидаем { ru: "Черный", en: "Black" }
+  color: Record<string, string>;
 
-  // 👇 ДОБАВИЛИ ОПИСАНИЕ
   @IsObject()
   @IsOptional()
-  description?: Record<string, string>; // Ожидаем { ru: "Описание...", en: "Desc..." }
+  description?: Record<string, string>;
 
   @IsEnum(Transmission)
   transmission: Transmission;
@@ -60,9 +59,26 @@ export class CreateCarDto {
   @IsOptional()
   price_per_km_over_limit?: number;
 
-  @IsInt()
+  // Добавляем пробег (был в ошибке)
+  @IsNumber()
   @IsOptional()
-  location_id?: number;
+  current_mileage?: number;
+
+  // Изменили на location (объект с id)
+  @IsObject()
+  @IsOptional()
+  location?: { id: number };
+
+  @IsObject()
+  @IsOptional()
+  // МЕНЯЕМ ТИП ТУТ: id должен быть string
+  owner?: { id: string } | null;
+
+  // Добавляем фичи (был в ошибке)
+  // В Autocomplete Multi-select это массив объектов
+  @IsArray()
+  @IsOptional()
+  features?: { id: number }[];
 
   @IsEnum(CarStatus)
   @IsOptional()
