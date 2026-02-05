@@ -25,7 +25,7 @@ export class RentalsService {
   ) {}
 
   async create(user: any, createRentalDto: CreateRentalDto) {
-    const { car_id, start_date, end_date } = createRentalDto;
+    const { car_id, start_date, end_date, user_id } = createRentalDto;
     const start = new Date(start_date);
     const end = new Date(end_date);
     const now = new Date();
@@ -39,6 +39,15 @@ export class RentalsService {
     }
     if (end <= now) {
       throw new BadRequestException('Rental end date cannot be in the past');
+    }
+
+    let targetUserId = user.id || user.userId;
+    const isAdminOrManager =
+      user.roles?.includes(UserRole.ADMIN) ||
+      user.roles?.includes(UserRole.MANAGER);
+
+    if (isAdminOrManager && user_id) {
+      targetUserId = user_id;
     }
 
     // 2. Find the car (Ensure location is loaded to know where to pick it up)
@@ -70,7 +79,7 @@ export class RentalsService {
     const calculatedPrice = days * car.price_per_day;
 
     const rental = this.rentalRepository.create({
-      user: { id: user.id || user.userId },
+      user: { id: targetUserId },
 
       car,
       start_date: start,
@@ -134,8 +143,11 @@ export class RentalsService {
     });
   }
 
-  async findAll(userId?: string) {
-    const whereCondition = userId ? { user: { id: userId } } : {};
+  async findAll(userId?: string, status?: RentalStatus) {
+    const whereCondition: any = {};
+
+    if (userId) whereCondition.user = { id: userId };
+    if (status) whereCondition.status = status;
 
     return this.rentalRepository.find({
       where: whereCondition,

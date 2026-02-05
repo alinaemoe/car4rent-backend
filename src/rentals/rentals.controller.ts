@@ -43,19 +43,16 @@ export class RentalsController {
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   async findAll(
     @Query('userId') userId: string | undefined,
+    @Query('status') status: RentalStatus | undefined, // 👈 Добавляем
     @Res({ passthrough: true }) res: Response,
   ) {
-    const rentals = await this.rentalsService.findAll(userId);
+    // Передаем статус в сервис
+    const rentals = await this.rentalsService.findAll(userId, status);
 
-    // Устанавливаем заголовки
     res.setHeader('X-Total-Count', rentals.length.toString());
     res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
 
-    // Возвращаем обёрнутый объект с data и total
-    return {
-      data: rentals,
-      total: rentals.length,
-    };
+    return rentals;
   }
 
   // 4. Админ: Одобрить/Отклонить/Завершить

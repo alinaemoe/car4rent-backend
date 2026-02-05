@@ -25,11 +25,11 @@ import { LocationsModule } from './locations/locations.module';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost', // ВАЖНО: Мы запускаем Node локально, поэтому для нас база на localhost
+      host: 'localhost', // IMPORTANT: we are running Node locally, so for us the database is on localhost.
       port: 5434,
-      username: 'root', // Как в docker-compose
-      password: 'root', // Как в docker-compose
-      database: 'car4rent', // Имя базы
+      username: 'root', // As in docker-compose
+      password: 'root', // As in docker-compose
+      database: 'car4rent', // Database name
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       autoLoadEntities: true,
       synchronize: true,

@@ -20,7 +20,6 @@ async function bootstrap() {
     .setTitle('Car4Rent API')
     .setDescription('API documentation')
     .setVersion('1.0')
-    // 👇 ВОТ ТАК НАСТРАИВАЕМ АВТОРИЗАЦИЮ
     .addBearerAuth(
       {
         type: 'http',
@@ -30,7 +29,7 @@ async function bootstrap() {
         description: 'Enter JWT token',
         in: 'header',
       },
-      'JWT-auth', // 👈 Это имя ключа, запомни его, оно нужно в контроллерах
+      'JWT-auth',
     )
     .build();
 
