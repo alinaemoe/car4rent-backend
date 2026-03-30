@@ -17,7 +17,6 @@ export class TranslationsService {
   ) {}
 
   async create(createTranslationDto: CreateTranslationDto) {
-    // Проверяем, нет ли уже такого ключа
     const existing = await this.translationsRepo.findOne({
       where: { key: createTranslationDto.key },
     });
@@ -31,11 +30,29 @@ export class TranslationsService {
     return await this.translationsRepo.save(translation);
   }
 
-  async findAll() {
-    // Возвращаем данные и их количество для заголовка X-Total-Count
-    const [data, total] = await this.translationsRepo.findAndCount({
-      order: { id: 'DESC' },
-    });
+  // 👇 Принимаем query-параметры
+  async findAll(query: any = {}) {
+    const { key_like, _sort, _order } = query;
+
+    // Начинаем строить кастомный запрос
+    const qb = this.translationsRepo.createQueryBuilder('translation');
+
+    // Если пришел поиск
+    if (key_like) {
+      qb.where('translation.key ILIKE :search', { search: `%${key_like}%` })
+        // ::text позволяет Postgres искать прямо внутри JSONB объекта!
+        .orWhere('translation.value::text ILIKE :search', {
+          search: `%${key_like}%`,
+        });
+    }
+
+    // Сортировка (если Refine прислал, используем её, иначе по умолчанию DESC по id)
+    const sortField = _sort || 'id';
+    const sortOrder = _order ? _order.toUpperCase() : 'DESC';
+    qb.orderBy(`translation.${sortField}`, sortOrder as 'ASC' | 'DESC');
+
+    // Выполняем запрос
+    const [data, total] = await qb.getManyAndCount();
     return { data, total };
   }
 

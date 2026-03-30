@@ -8,6 +8,7 @@ import {
   Delete,
   ParseIntPipe,
   Res,
+  Query, // 👈 Импортируем Query
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { TranslationsService } from './translations.service';
@@ -18,7 +19,7 @@ import { UserRole } from '../entities/user.entity';
 import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('translations')
-@Roles(UserRole.ADMIN) // По умолчанию весь контроллер только для админов
+@Roles(UserRole.ADMIN)
 export class TranslationsController {
   constructor(private readonly translationsService: TranslationsService) {}
 
@@ -27,17 +28,19 @@ export class TranslationsController {
     return this.translationsService.create(createTranslationDto);
   }
 
-  // Делаем список публичным, чтобы мобилка и веб могли при старте затянуть переводы
   @Public()
   @Get()
-  async findAll(@Res({ passthrough: true }) res: Response) {
-    const { data, total } = await this.translationsService.findAll();
+  async findAll(
+    @Query() query: any, // 👈 Ловим все query-параметры (?key_like=...&_sort=...)
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Передаем query в сервис
+    const { data, total } = await this.translationsService.findAll(query);
 
-    // Для пагинации Refine
     res.setHeader('X-Total-Count', total.toString());
     res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
 
-    return data; // Возвращаем чистый массив!
+    return data;
   }
 
   @Get(':id')
