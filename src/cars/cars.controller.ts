@@ -9,6 +9,7 @@ import {
   ParseIntPipe,
   UseInterceptors,
   UploadedFile,
+  Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CarsService } from './cars.service';
@@ -23,62 +24,77 @@ import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 export class CarsController {
   constructor(
     private readonly carsService: CarsService,
-    private readonly cloudinaryService: CloudinaryService, // 👈 Инжектим сервис
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  // 1. СОЗДАНИЕ: Только Админ (или Менеджер)
+  // 1. СОЗДАНИЕ: Разрешаем всем авторизованным (Клиент станет LESSOR'ом)
   @Post()
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  create(@Body() createCarDto: CreateCarDto) {
-    return this.carsService.create(createCarDto);
+  create(@Body() createCarDto: CreateCarDto, @Request() req) {
+    return this.carsService.create(createCarDto, req.user);
   }
 
-  // 2. СПИСОК: Публично (каталог видят все)
+  // 2. МОИ МАШИНЫ: ВАЖНО! Этот роут должен быть ВЫШЕ, чем @Get(':id')
+  @Get('my')
+  @Roles(UserRole.LESSOR, UserRole.ADMIN, UserRole.MANAGER)
+  findMyCars(@Request() req) {
+    return this.carsService.findCarsByOwner(req.user.userId);
+  }
+
+  // 3. СПИСОК: Публично (каталог видят все)
   @Public()
   @Get()
   findAll() {
     return this.carsService.findAll();
   }
 
+  // 4. ОДНА МАШИНА: Публично
   @Public()
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.carsService.findOne(id);
   }
 
+  // 5. ОБНОВЛЕНИЕ: Админ, Менеджер или Владелец (LESSOR)
   @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.LESSOR)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCarDto: UpdateCarDto,
+    @Request() req, // 👈 Передаем юзера для проверки прав
   ) {
-    return this.carsService.update(id, updateCarDto);
+    return this.carsService.update(id, updateCarDto, req.user);
   }
 
-  // 5. УДАЛЕНИЕ: Только Админ
+  // 6. УДАЛЕНИЕ: Оставим только Админам (или можно добавить логику "мягкого удаления" для LESSOR)
   @Delete(':id')
   @Roles(UserRole.ADMIN)
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.carsService.remove(id);
   }
 
+  // 7. ЗАГРУЗКА ФОТО: Админ или Владелец
   @Post(':id/images')
-  @Roles(UserRole.ADMIN) // Только админ грузит фото
-  @UseInterceptors(FileInterceptor('file')) // 'file' - имя поля в Form-Data
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.LESSOR)
+  @UseInterceptors(FileInterceptor('file'))
   async uploadImage(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
+    @Request() req, // 👈 Передаем юзера
   ) {
-    // 1. Загружаем в облако
+    // 1. Проверяем права ДО загрузки в облако (внутри сервиса)
+    await this.carsService.checkOwnership(id, req.user);
+
+    // 2. Загружаем в облако
     const imageUrl = await this.cloudinaryService.uploadImage(file);
 
-    // 2. Сохраняем ссылку в БД
+    // 3. Сохраняем ссылку в БД
     return this.carsService.uploadCarImage(id, imageUrl);
   }
 
+  // 8. УДАЛЕНИЕ ФОТО: Админ или Владелец
   @Delete('images/:id')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  removeImage(@Param('id', ParseIntPipe) id: number) {
-    return this.carsService.removeImage(id);
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.LESSOR)
+  removeImage(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.carsService.removeImage(id, req.user);
   }
 }

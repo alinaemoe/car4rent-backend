@@ -47,7 +47,8 @@ export class UsersService {
       throw new NotFoundException(`User with id ${id} not found`);
     }
 
-    return user;
+    const { password_hash, ...safeUser } = user;
+    return safeUser;
   }
 
   // Critical for Auth: Find user to validate password
