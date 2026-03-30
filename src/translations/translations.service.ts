@@ -1,43 +1,70 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Translation } from '../entities/translation.entity';
 import { CreateTranslationDto } from './dto/create-translation.dto';
 import { UpdateTranslationDto } from './dto/update-translation.dto';
-import { Translation } from '../entities/translation.entity';
 
 @Injectable()
 export class TranslationsService {
   constructor(
     @InjectRepository(Translation)
-    private repo: Repository<Translation>,
+    private readonly translationsRepo: Repository<Translation>,
   ) {}
 
-  async create(dto: CreateTranslationDto) {
-    try {
-      const translation = this.repo.create(dto);
-      return await this.repo.save(translation);
-    } catch (e) {
-      if (e.code === '23505') {
-        // Код ошибки Postgres: Unique violation
-        throw new ConflictException('Such a translation key already exists.');
-      }
-      throw e;
+  async create(createTranslationDto: CreateTranslationDto) {
+    // Проверяем, нет ли уже такого ключа
+    const existing = await this.translationsRepo.findOne({
+      where: { key: createTranslationDto.key },
+    });
+    if (existing) {
+      throw new ConflictException(
+        `Translation key '${createTranslationDto.key}' already exists`,
+      );
     }
+
+    const translation = this.translationsRepo.create(createTranslationDto);
+    return await this.translationsRepo.save(translation);
   }
 
-  findAll() {
-    return this.repo.find();
+  async findAll() {
+    // Возвращаем данные и их количество для заголовка X-Total-Count
+    const [data, total] = await this.translationsRepo.findAndCount({
+      order: { id: 'DESC' },
+    });
+    return { data, total };
   }
 
-  findOne(id: number) {
-    return this.repo.findOneBy({ id });
+  async findOne(id: number) {
+    const translation = await this.translationsRepo.findOne({ where: { id } });
+    if (!translation) {
+      throw new NotFoundException(`Translation with ID ${id} not found`);
+    }
+    return translation;
   }
 
-  update(id: number, dto: UpdateTranslationDto) {
-    return this.repo.update(id, dto);
+  async update(id: number, updateTranslationDto: UpdateTranslationDto) {
+    const translation = await this.translationsRepo.preload({
+      id,
+      ...updateTranslationDto,
+    });
+
+    if (!translation) {
+      throw new NotFoundException(`Translation with ID ${id} not found`);
+    }
+
+    return await this.translationsRepo.save(translation);
   }
 
-  remove(id: number) {
-    return this.repo.delete(id);
+  async remove(id: number) {
+    const result = await this.translationsRepo.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Translation with ID ${id} not found`);
+    }
+    return { message: 'Translation deleted successfully' };
   }
 }

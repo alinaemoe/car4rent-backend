@@ -5,7 +5,8 @@ export class CreateTranslationDto {
   @IsNotEmpty()
   key: string;
 
-  @IsObject() // Проверяем, что пришел JSON объект
+  // Ожидаем объект вида { "en": "Value", "ru": "Значение" }
+  @IsObject()
   @IsNotEmpty()
-  value: Record<string, string>; // { ru: "...", en: "..." }
+  value: Record<string, string>;
 }
