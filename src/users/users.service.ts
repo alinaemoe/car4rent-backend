@@ -87,4 +87,10 @@ export class UsersService {
   async remove(id: string) {
     return await this.usersRepository.delete(id);
   }
+
+  async updateRefreshToken(userId: string, hashedToken: string | null) {
+    await this.usersRepository.update(userId, {
+      hashed_refresh_token: hashedToken,
+    });
+  }
 }

@@ -37,6 +37,10 @@ export class User {
   @Exclude()
   password_hash: string;
 
+  @Column({ nullable: true })
+  @Exclude() // Прячем его от выдачи на фронтенд, как и пароль
+  hashed_refresh_token: string | null;
+
   @Column()
   first_name: string;
 

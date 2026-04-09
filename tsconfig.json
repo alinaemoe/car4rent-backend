@@ -1,25 +1,31 @@
 {
   "compilerOptions": {
+    // 1. Убираем ругань на депрекацию (важно: "5.0" или "6.0")
+    "ignoreDeprecations": "5.0",
+
+    // 2. Оставляем возможность писать от корня
+    "baseUrl": ".",
+    "paths": {
+      "src/*": ["src/*"]
+    },
+
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "resolvePackageJsonExports": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "declaration": true,
-    "removeComments": true,
+    "target": "ES2023",
+    "outDir": "./dist",
+
+    // 3. Твой любимый режим "без занудства"
+    "strict": false,
+    "strictPropertyInitialization": false,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+
+    // 4. Обязательно для NestJS и TypeORM
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
-    "sourceMap": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
-    "incremental": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
-    "strictNullChecks": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
-  }
+    "forceConsistentCasingInFileNames": true
+  },
+  "exclude": ["node_modules", "dist"]
 }
