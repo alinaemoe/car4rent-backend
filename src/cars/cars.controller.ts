@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFile,
   Request,
+  Query,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CarsService } from './cars.service';
@@ -45,6 +46,12 @@ export class CarsController {
   @Get()
   findAll() {
     return this.carsService.findAll();
+  }
+
+  @Public()
+  @Get('catalog')
+  getCatalog(@Query() query: any) {
+    return this.carsService.getCatalog(query);
   }
 
   // 4. ОДНА МАШИНА: Публично

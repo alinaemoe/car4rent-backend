@@ -76,6 +76,58 @@ export class CarsService {
     });
   }
 
+  async getCatalog(query: {
+    page?: number;
+    limit?: number;
+    brand?: string;
+    status?: CarStatus;
+  }) {
+    const page = query.page ? Number(query.page) : 1;
+    const limit = query.limit ? Number(query.limit) : 10;
+    const skip = (page - 1) * limit;
+
+    const qb = this.carsRepository.createQueryBuilder('car');
+
+    // 1. ДЖОИНИМ ТОЛЬКО ГЛАВНУЮ КАРТИНКУ (is_main = true)
+    qb.leftJoinAndSelect('car.images', 'image', 'image.is_main = :isMain', {
+      isMain: true,
+    });
+
+    // 2. ДЖОИНИМ ЛОКАЦИЮ (полезно для бейджа города)
+    qb.leftJoinAndSelect('car.location', 'location');
+
+    // Мы НЕ джоиним features, rentals, reviews и owner!
+    // Payload будет весить копейки.
+
+    // 3. ФИЛЬТРЫ
+    // По умолчанию показываем только доступные машины, если не запрошен другой статус
+    const carStatus = query.status || CarStatus.AVAILABLE;
+    qb.andWhere('car.status = :status', { status: carStatus });
+
+    if (query.brand) {
+      // ILIKE для поиска без учета регистра (например "bmw" найдет "BMW")
+      qb.andWhere('car.brand ILIKE :brand', { brand: `%${query.brand}%` });
+    }
+
+    // 4. ПАГИНАЦИЯ И СОРТИРОВКА
+    qb.orderBy('car.created_at', 'DESC');
+    qb.skip(skip).take(limit);
+
+    // 5. ВЫПОЛНЯЕМ ЗАПРОС
+    const [data, total] = await qb.getManyAndCount();
+
+    // Возвращаем данные вместе с метой для Infinite Scroll на фронте
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async findOne(id: number) {
     const car = await this.carsRepository.findOne({
       where: { id },
