@@ -7,7 +7,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
-import { Car, CarStatus } from '../entities/car.entity';
+import {
+  Car,
+  CarStatus,
+  BodyType,
+  Transmission,
+  FuelType,
+} from '../entities/car.entity';
 import { CarImage } from 'src/entities/car-image.entity';
 import { User, UserRole } from '../entities/user.entity';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
@@ -76,11 +82,19 @@ export class CarsService {
     });
   }
 
+  // 👇 ОБНОВЛЕННЫЙ МЕТОД ДЛЯ МОБИЛЬНОГО КАТАЛОГА
   async getCatalog(query: {
     page?: number;
     limit?: number;
     brand?: string;
     status?: CarStatus;
+    body_type?: BodyType;
+    transmission?: Transmission;
+    fuel_type?: FuelType;
+    min_price?: number;
+    max_price?: number;
+    min_year?: number;
+    max_year?: number;
   }) {
     const page = query.page ? Number(query.page) : 1;
     const limit = query.limit ? Number(query.limit) : 10;
@@ -88,35 +102,56 @@ export class CarsService {
 
     const qb = this.carsRepository.createQueryBuilder('car');
 
-    // 1. ДЖОИНИМ ТОЛЬКО ГЛАВНУЮ КАРТИНКУ (is_main = true)
     qb.leftJoinAndSelect('car.images', 'image', 'image.is_main = :isMain', {
       isMain: true,
     });
-
-    // 2. ДЖОИНИМ ЛОКАЦИЮ (полезно для бейджа города)
     qb.leftJoinAndSelect('car.location', 'location');
 
-    // Мы НЕ джоиним features, rentals, reviews и owner!
-    // Payload будет весить копейки.
-
-    // 3. ФИЛЬТРЫ
-    // По умолчанию показываем только доступные машины, если не запрошен другой статус
+    // Базовый статус
     const carStatus = query.status || CarStatus.AVAILABLE;
     qb.andWhere('car.status = :status', { status: carStatus });
 
+    // Строковые фильтры
     if (query.brand) {
-      // ILIKE для поиска без учета регистра (например "bmw" найдет "BMW")
       qb.andWhere('car.brand ILIKE :brand', { brand: `%${query.brand}%` });
     }
+    if (query.body_type) {
+      qb.andWhere('car.body_type = :body_type', { body_type: query.body_type });
+    }
+    if (query.transmission) {
+      qb.andWhere('car.transmission = :transmission', {
+        transmission: query.transmission,
+      });
+    }
+    if (query.fuel_type) {
+      qb.andWhere('car.fuel_type = :fuel_type', { fuel_type: query.fuel_type });
+    }
 
-    // 4. ПАГИНАЦИЯ И СОРТИРОВКА
+    // Числовые диапазоны (Цена)
+    if (query.min_price) {
+      qb.andWhere('car.price_per_day >= :min_price', {
+        min_price: query.min_price,
+      });
+    }
+    if (query.max_price) {
+      qb.andWhere('car.price_per_day <= :max_price', {
+        max_price: query.max_price,
+      });
+    }
+
+    // Числовые диапазоны (Год)
+    if (query.min_year) {
+      qb.andWhere('car.year >= :min_year', { min_year: query.min_year });
+    }
+    if (query.max_year) {
+      qb.andWhere('car.year <= :max_year', { max_year: query.max_year });
+    }
+
     qb.orderBy('car.created_at', 'DESC');
     qb.skip(skip).take(limit);
 
-    // 5. ВЫПОЛНЯЕМ ЗАПРОС
     const [data, total] = await qb.getManyAndCount();
 
-    // Возвращаем данные вместе с метой для Infinite Scroll на фронте
     return {
       data,
       meta: {

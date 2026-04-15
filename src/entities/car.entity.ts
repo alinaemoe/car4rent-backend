@@ -36,6 +36,22 @@ export enum FuelType {
   HYBRID = 'HYBRID',
 }
 
+// 👇 НОВЫЕ ENUM'Ы ДЛЯ ФИЛЬТРОВ
+export enum BodyType {
+  SEDAN = 'SEDAN',
+  SUV = 'SUV',
+  HATCHBACK = 'HATCHBACK',
+  COUPE = 'COUPE',
+  CABRIOLET = 'CABRIOLET',
+  MINIVAN = 'MINIVAN',
+}
+
+export enum DriveType {
+  FWD = 'FWD', // Передний
+  RWD = 'RWD', // Задний
+  AWD = 'AWD', // Полный
+}
+
 @Entity('cars')
 export class Car {
   @PrimaryGeneratedColumn()
@@ -56,16 +72,21 @@ export class Car {
   @Column({ unique: true })
   vin: string;
 
-  // 👇 ИСПРАВЛЕНО: JSONB объект для цвета { ru: "...", en: "..." }
   @Column({ type: 'jsonb' })
   color: Record<string, string>;
 
-  // 👇 ДОБАВЛЕНО: JSONB объект для описания { ru: "...", en: "..." }
   @Column({ type: 'jsonb', nullable: true })
   description: Record<string, string>;
 
   @Column({ type: 'enum', enum: CarStatus, default: CarStatus.AVAILABLE })
   status: CarStatus;
+
+  // 👇 НОВЫЕ ПОЛЯ (с дефолтными значениями на всякий случай, если в базе уже есть машины)
+  @Column({ type: 'enum', enum: BodyType, default: BodyType.SEDAN })
+  body_type: BodyType;
+
+  @Column({ type: 'enum', enum: DriveType, default: DriveType.FWD }) // Исправь дефолт, если надо
+  drive_type: DriveType;
 
   @Column({ type: 'enum', enum: Transmission })
   transmission: Transmission;
@@ -89,11 +110,11 @@ export class Car {
   // СВЯЗИ
   @ManyToOne(() => User, (user) => user.my_cars, { nullable: true })
   @JoinColumn({ name: 'owner_id' })
-  owner: User | null; // Разрешаем null для TypeScript
+  owner: User | null;
 
   @ManyToOne(() => Location, { nullable: true })
   @JoinColumn({ name: 'location_id' })
-  location: Location | null; // Разрешаем null для TypeScript
+  location: Location | null;
 
   @OneToMany(() => CarImage, (image) => image.car)
   images: CarImage[];
