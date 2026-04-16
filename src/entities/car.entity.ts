@@ -52,6 +52,19 @@ export enum DriveType {
   AWD = 'AWD', // Полный
 }
 
+export enum CarColor {
+  WHITE = 'WHITE',
+  BLACK = 'BLACK',
+  GREY = 'GREY',
+  RED = 'RED',
+  BLUE = 'BLUE',
+  GREEN = 'GREEN',
+  YELLOW = 'YELLOW',
+  BROWN = 'BROWN',
+  PINK = 'PINK',
+  ORANGE = 'ORANGE',
+}
+
 @Entity('cars')
 export class Car {
   @PrimaryGeneratedColumn()
@@ -72,8 +85,8 @@ export class Car {
   @Column({ unique: true })
   vin: string;
 
-  @Column({ type: 'jsonb' })
-  color: Record<string, string>;
+  @Column({ type: 'enum', enum: CarColor, default: CarColor.WHITE })
+  color: CarColor;
 
   @Column({ type: 'jsonb', nullable: true })
   description: Record<string, string>;
@@ -81,11 +94,10 @@ export class Car {
   @Column({ type: 'enum', enum: CarStatus, default: CarStatus.AVAILABLE })
   status: CarStatus;
 
-  // 👇 НОВЫЕ ПОЛЯ (с дефолтными значениями на всякий случай, если в базе уже есть машины)
   @Column({ type: 'enum', enum: BodyType, default: BodyType.SEDAN })
   body_type: BodyType;
 
-  @Column({ type: 'enum', enum: DriveType, default: DriveType.FWD }) // Исправь дефолт, если надо
+  @Column({ type: 'enum', enum: DriveType, default: DriveType.FWD })
   drive_type: DriveType;
 
   @Column({ type: 'enum', enum: Transmission })
@@ -93,6 +105,13 @@ export class Car {
 
   @Column({ type: 'enum', enum: FuelType })
   fuel_type: FuelType;
+
+  // 👇 НОВЫЕ ПОЛЯ ИЗ ТВОЕГО СПИСКА
+  @Column({ type: 'int', nullable: true })
+  horsepower: number; // Мощность (л.с.)
+
+  @Column('decimal', { precision: 4, scale: 1, nullable: true })
+  fuel_consumption: number; // Расход топлива (л/100км)
 
   // Prices and Limits
   @Column('decimal', { precision: 10, scale: 2 })
@@ -105,7 +124,7 @@ export class Car {
   price_per_km_over_limit: number;
 
   @Column({ default: 0 })
-  current_mileage: number;
+  current_mileage: number; // Пробег машины
 
   // СВЯЗИ
   @ManyToOne(() => User, (user) => user.my_cars, { nullable: true })
@@ -120,7 +139,7 @@ export class Car {
   images: CarImage[];
 
   @ManyToMany(() => Feature)
-  @JoinTable({ name: 'car_features' })
+  @JoinTable({ name: 'car_features' }) // Эта таблица нужна будет для фильтрации по опциям
   features: Feature[];
 
   @OneToMany(() => Rental, (rental) => rental.car)

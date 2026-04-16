@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
+import { GetCatalogDto } from './dto/get-catalog-dto';
 import {
   Car,
   CarStatus,
@@ -81,21 +82,8 @@ export class CarsService {
       order: { created_at: 'DESC' },
     });
   }
-
-  // 👇 ОБНОВЛЕННЫЙ МЕТОД ДЛЯ МОБИЛЬНОГО КАТАЛОГА
-  async getCatalog(query: {
-    page?: number;
-    limit?: number;
-    brand?: string;
-    status?: CarStatus;
-    body_type?: BodyType;
-    transmission?: Transmission;
-    fuel_type?: FuelType;
-    min_price?: number;
-    max_price?: number;
-    min_year?: number;
-    max_year?: number;
-  }) {
+  // 👇 ОБНОВЛЕННЫЙ МЕТОД ДЛЯ МОБИЛЬНОГО КАТАЛОГА С МАКСИМАЛЬНЫМИ ФИЛЬТРАМИ
+  async getCatalog(query: GetCatalogDto) {
     const page = query.page ? Number(query.page) : 1;
     const limit = query.limit ? Number(query.limit) : 10;
     const skip = (page - 1) * limit;
@@ -106,51 +94,188 @@ export class CarsService {
       isMain: true,
     });
     qb.leftJoinAndSelect('car.location', 'location');
+    qb.leftJoinAndSelect('car.features', 'features');
+
+    // Считаем количество отзывов (это TypeORM умеет мапить из коробки)
+    qb.loadRelationCountAndMap('car.reviews_count', 'car.reviews');
 
     // Базовый статус
     const carStatus = query.status || CarStatus.AVAILABLE;
     qb.andWhere('car.status = :status', { status: carStatus });
 
-    // Строковые фильтры
-    if (query.brand) {
-      qb.andWhere('car.brand ILIKE :brand', { brand: `%${query.brand}%` });
-    }
-    if (query.body_type) {
-      qb.andWhere('car.body_type = :body_type', { body_type: query.body_type });
-    }
-    if (query.transmission) {
-      qb.andWhere('car.transmission = :transmission', {
-        transmission: query.transmission,
-      });
-    }
-    if (query.fuel_type) {
-      qb.andWhere('car.fuel_type = :fuel_type', { fuel_type: query.fuel_type });
+    // --- УТИЛИТА ДЛЯ МАССИВОВ ---
+    const toArray = (val: any): any[] => {
+      if (!val) return [];
+      return Array.isArray(val) ? val : String(val).split(',');
+    };
+
+    // 1. ИЗБРАННОЕ (ПО ИДЕНТИФИКАТОРАМ)
+    const idsArray = toArray(query.ids)
+      .map(Number)
+      .filter((id) => !isNaN(id));
+    if (idsArray.length > 0) {
+      qb.andWhere('car.id IN (:...ids)', { ids: idsArray });
     }
 
-    // Числовые диапазоны (Цена)
-    if (query.min_price) {
+    // 2. БАЗОВЫЕ МАССИВЫ (Марка, Кузов, Топливо, Коробка, Привод)
+    const brands = toArray(query.brands);
+    if (brands.length > 0) qb.andWhere('car.brand IN (:...brands)', { brands });
+
+    const bodyTypes = toArray(query.body_types);
+    if (bodyTypes.length > 0)
+      qb.andWhere('car.body_type IN (:...bodyTypes)', { bodyTypes });
+
+    const transmissions = toArray(query.transmissions);
+    if (transmissions.length > 0)
+      qb.andWhere('car.transmission IN (:...transmissions)', { transmissions });
+
+    const fuelTypes = toArray(query.fuel_types);
+    if (fuelTypes.length > 0)
+      qb.andWhere('car.fuel_type IN (:...fuelTypes)', { fuelTypes });
+
+    const driveTypes = toArray(query.drive_types);
+    if (driveTypes.length > 0)
+      qb.andWhere('car.drive_type IN (:...driveTypes)', { driveTypes });
+
+    // 3. ЧИСЛОВЫЕ ДИАПАЗОНЫ (От и До)
+    if (query.min_price)
       qb.andWhere('car.price_per_day >= :min_price', {
         min_price: query.min_price,
       });
-    }
-    if (query.max_price) {
+    if (query.max_price)
       qb.andWhere('car.price_per_day <= :max_price', {
         max_price: query.max_price,
       });
-    }
 
-    // Числовые диапазоны (Год)
-    if (query.min_year) {
+    if (query.min_year)
       qb.andWhere('car.year >= :min_year', { min_year: query.min_year });
-    }
-    if (query.max_year) {
+    if (query.max_year)
       qb.andWhere('car.year <= :max_year', { max_year: query.max_year });
+
+    if (query.min_mileage)
+      qb.andWhere('car.current_mileage >= :min_mileage', {
+        min_mileage: query.min_mileage,
+      });
+    if (query.max_mileage)
+      qb.andWhere('car.current_mileage <= :max_mileage', {
+        max_mileage: query.max_mileage,
+      });
+
+    if (query.min_power)
+      qb.andWhere('car.horsepower >= :min_power', {
+        min_power: query.min_power,
+      });
+    if (query.max_power)
+      qb.andWhere('car.horsepower <= :max_power', {
+        max_power: query.max_power,
+      });
+
+    if (query.min_consumption)
+      qb.andWhere('car.fuel_consumption >= :min_consumption', {
+        min_consumption: query.min_consumption,
+      });
+    if (query.max_consumption)
+      qb.andWhere('car.fuel_consumption <= :max_consumption', {
+        max_consumption: query.max_consumption,
+      });
+
+    // 4. ДОП. ОПЦИИ (Features) - "Машина должна иметь ВСЕ выбранные опции"
+    const featureIds = toArray(query.feature_ids)
+      .map(Number)
+      .filter((id) => !isNaN(id));
+
+    if (featureIds.length > 0) {
+      qb.andWhere((subQb) => {
+        const subQuery = subQb
+          .subQuery()
+          .select('cf.carsId')
+          .from('car_features', 'cf')
+          .where('cf.featuresId IN (:...featureIds)')
+          .groupBy('cf.carsId')
+          .having('COUNT(cf.featuresId) >= :featuresCount')
+          .getQuery();
+        return `car.id IN ${subQuery}`;
+      });
+      qb.setParameter('featureIds', featureIds);
+      qb.setParameter('featuresCount', featureIds.length);
     }
 
-    qb.orderBy('car.created_at', 'DESC');
-    qb.skip(skip).take(limit);
+    // 5. ДАТЫ АРЕНДЫ (Исключаем занятые машины)
+    if (query.start_date && query.end_date) {
+      qb.andWhere((subQb) => {
+        const subQuery = subQb
+          .subQuery()
+          .select('rental.car_id')
+          .from('rentals', 'rental')
+          .where("rental.status NOT IN ('CANCELLED', 'COMPLETED')")
+          .andWhere(
+            '(rental.start_date <= :endDate AND rental.end_date >= :startDate)',
+          )
+          .getQuery();
+        return `car.id NOT IN ${subQuery}`;
+      });
+      qb.setParameter('startDate', query.start_date);
+      qb.setParameter('endDate', query.end_date);
+    }
 
+    // 6. МИНИМАЛЬНЫЙ РЕЙТИНГ (Фильтрация работает на уровне SQL)
+    if (query.min_rating) {
+      qb.andWhere((subQb) => {
+        const subQuery = subQb
+          .subQuery()
+          .select('COALESCE(AVG(r.rating), 0)')
+          .from('reviews', 'r')
+          .where('r.car_id = car.id')
+          .getQuery();
+        return `${subQuery} >= :min_rating`;
+      });
+      qb.setParameter('min_rating', query.min_rating);
+    }
+
+    // 7. СОРТИРОВКА
+    if (query.sort_by === 'price_asc') {
+      qb.orderBy('car.price_per_day', 'ASC');
+    } else if (query.sort_by === 'price_desc') {
+      qb.orderBy('car.price_per_day', 'DESC');
+    } else if (query.sort_by === 'rating_desc') {
+      // Сортировка по подзапросу
+      qb.addSelect((subQuery) => {
+        return subQuery
+          .select('COALESCE(AVG(r.rating), 0)', 'avg_rating')
+          .from('reviews', 'r')
+          .where('r.car_id = car.id');
+      }, 'ratingOrder');
+      qb.orderBy('ratingOrder', 'DESC');
+    } else {
+      qb.orderBy('car.created_at', 'DESC');
+    }
+
+    // Выполняем основной запрос
+    qb.skip(skip).take(limit);
     const [data, total] = await qb.getManyAndCount();
+
+    // 8. 🛠 РЕШЕНИЕ ПРОБЛЕМЫ: РУЧНОЙ МАППИНГ РЕЙТИНГА
+    if (data.length > 0) {
+      const carIds = data.map((car) => car.id);
+
+      // Делаем легкий сырой запрос через менеджер для подсчета среднего рейтинга
+      const ratings = await this.carsRepository.manager
+        .createQueryBuilder()
+        .select('r.car_id', 'carId')
+        .addSelect('ROUND(AVG(r.rating), 1)', 'avgRating')
+        .from('reviews', 'r')
+        .where('r.car_id IN (:...carIds)', { carIds })
+        .groupBy('r.car_id')
+        .getRawMany();
+
+      const ratingMap = new Map();
+      ratings.forEach((r) => ratingMap.set(r.carId, Number(r.avgRating)));
+
+      // Приклеиваем рейтинг к нашим сущностям
+      data.forEach((car: any) => {
+        car.avg_rating = ratingMap.get(car.id) || 0;
+      });
+    }
 
     return {
       data,

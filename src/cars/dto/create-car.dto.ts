@@ -10,7 +10,12 @@ import {
   IsObject,
   IsArray,
 } from 'class-validator';
-import { CarStatus, FuelType, Transmission } from '../../entities/car.entity';
+import {
+  CarStatus,
+  FuelType,
+  Transmission,
+  CarColor,
+} from '../../entities/car.entity';
 
 export class CreateCarDto {
   @IsString()
@@ -33,9 +38,9 @@ export class CreateCarDto {
   @IsNotEmpty()
   vin: string;
 
-  @IsObject()
+  @IsEnum(CarColor)
   @IsNotEmpty()
-  color: Record<string, string>;
+  color: CarColor;
 
   @IsObject()
   @IsOptional()
