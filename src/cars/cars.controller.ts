@@ -54,6 +54,12 @@ export class CarsController {
     return this.carsService.getCatalog(query);
   }
 
+  @Public()
+  @Get('catalog/:id')
+  getCatalogOne(@Param('id', ParseIntPipe) id: number) {
+    return this.carsService.getCatalogOne(id);
+  }
+
   // 4. ОДНА МАШИНА: Публично
   @Public()
   @Get(':id')

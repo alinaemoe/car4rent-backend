@@ -286,6 +286,63 @@ export class CarsService {
     };
   }
 
+  async getCatalogOne(id: number) {
+    // 1. Достаем саму машину со статичными связями (без ренталов и отзывов, чтобы не грузить БД)
+    const car = await this.carsRepository.findOne({
+      where: { id },
+      relations: ['location', 'images', 'features'],
+    });
+
+    if (!car) throw new NotFoundException(`Car with ID ${id} not found`);
+
+    // 2. Достаем ЗАНЯТЫЕ ДАТЫ (Активные бронирования)
+    // Отдаем на фронт только start_date и end_date, чтобы календарь заблокировал эти дни
+    const bookedDates = await this.carsRepository.manager
+      .createQueryBuilder()
+      .select(['r.start_date AS "startDate"', 'r.end_date AS "endDate"'])
+      .from('rentals', 'r')
+      .where('r.car_id = :id', { id })
+      // Нас волнуют только те брони, которые состоятся или уже идут
+      .andWhere("r.status IN ('CREATED', 'APPROVED', 'ACTIVE')")
+      .getRawMany();
+
+    // 3. Достаем СТАТИСТИКУ РЕЙТИНГА
+    const ratingStats = await this.carsRepository.manager
+      .createQueryBuilder()
+      .select('COALESCE(ROUND(AVG(r.rating), 1), 0)', 'avgRating')
+      .addSelect('COUNT(r.id)', 'reviewsCount')
+      .from('reviews', 'r')
+      .where('r.car_id = :id', { id })
+      .getRawOne();
+
+    // 4. Достаем ПОСЛЕДНИЕ 3 ОТЗЫВА (Для превью на экране)
+    const latestReviews = await this.carsRepository.manager
+      .createQueryBuilder()
+      .select([
+        'r.id AS "id"',
+        'r.rating AS "rating"',
+        'r.comment AS "comment"',
+        'r.created_at AS "createdAt"',
+        'u.first_name AS "userFirstName"', // Достаем имя автора
+        'u.last_name AS "userLastName"',
+      ])
+      .from('reviews', 'r')
+      .leftJoin('r.user', 'u')
+      .where('r.car_id = :id', { id })
+      .orderBy('r.created_at', 'DESC')
+      .limit(3) // 👈 Жесткий лимит!
+      .getRawMany();
+
+    // 5. Собираем идеальный объект для мобильного приложения
+    return {
+      ...car,
+      avg_rating: Number(ratingStats.avgRating),
+      reviews_count: Number(ratingStats.reviewsCount),
+      booked_dates: bookedDates, // Массив [{startDate, endDate}, ...]
+      latest_reviews: latestReviews, // Массив из 3-х отзывов
+    };
+  }
+
   async findOne(id: number) {
     const car = await this.carsRepository.findOne({
       where: { id },
