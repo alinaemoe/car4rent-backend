@@ -1,9 +1,13 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, IsObject } from 'class-validator';
 
 export class CreateFeatureDto {
   @IsString()
   @IsNotEmpty()
-  name: string; // "Кондиционер"
+  internal_name: string; // 'air_conditioning'
+
+  @IsObject()
+  @IsNotEmpty()
+  description: Record<string, string>; // { "ru": "Кондиционер", "en": "Air conditioning" }
 
   @IsString()
   @IsOptional()

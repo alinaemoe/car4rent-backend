@@ -4,9 +4,11 @@ import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 export class Feature {
   @PrimaryGeneratedColumn()
   id: number;
+  @Column({ unique: true, nullable: true })
+  internal_name: string; // Строгое имя для кода (например: 'climate_control', 'apple_carplay')
 
-  @Column()
-  name: string; // Air conditioning, GPS
+  @Column({ type: 'jsonb', nullable: true })
+  description: Record<string, string>; // Локализованные названия: { "ru": "Климат-контроль", "en": "Climate control" }
 
   @Column({ nullable: true })
   icon_url: string;
