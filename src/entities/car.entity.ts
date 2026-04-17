@@ -86,6 +86,25 @@ export class Car {
   @Column({ default: 0 })
   current_mileage: number;
 
+  // Храним в JSONB. Формат: { "3": 5, "7": 10, "14": 15 } -> от 3 дней скидка 5% и т.д.
+  @Column({ type: 'jsonb', nullable: true })
+  discount_tiers: Record<string, number>;
+
+  // 2. Залог (Депозит)
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  deposit_amount: number; // 0 означает "Без залога"
+
+  // 3. Страховка
+  @Column({ default: 'ОСАГО' })
+  insurance_type: string; // 'ОСАГО', 'КАСКО', 'КАСКО с франшизой'
+
+  // 4. Требования к водителю (для блока "Правила аренды")
+  @Column({ type: 'int', default: 21 })
+  min_age: number; // Минимальный возраст
+
+  @Column({ type: 'int', default: 2 })
+  min_experience: number; // Минимальный стаж вождения в годах
+
   // Связи
   @ManyToOne(() => User, (user) => user.my_cars, { nullable: true })
   @JoinColumn({ name: 'owner_id' })

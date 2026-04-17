@@ -59,23 +59,18 @@ export class CreateCarDto {
   @IsOptional()
   price_per_km_over_limit?: number;
 
-  // Добавляем пробег (был в ошибке)
   @IsNumber()
   @IsOptional()
   current_mileage?: number;
 
-  // Изменили на location (объект с id)
   @IsObject()
   @IsOptional()
   location?: { id: number };
 
   @IsObject()
   @IsOptional()
-  // МЕНЯЕМ ТИП ТУТ: id должен быть string
   owner?: { id: string } | null;
 
-  // Добавляем фичи (был в ошибке)
-  // В Autocomplete Multi-select это массив объектов
   @IsArray()
   @IsOptional()
   features?: { id: number }[];
@@ -83,4 +78,25 @@ export class CreateCarDto {
   @IsEnum(CarStatus)
   @IsOptional()
   status?: CarStatus;
+
+  // 👇 НОВЫЕ ПОЛЯ ДЛЯ КРУТОГО UI
+  @IsObject()
+  @IsOptional()
+  discount_tiers?: Record<string, number>;
+
+  @IsNumber()
+  @IsOptional()
+  deposit_amount?: number;
+
+  @IsString()
+  @IsOptional()
+  insurance_type?: string;
+
+  @IsInt()
+  @IsOptional()
+  min_age?: number;
+
+  @IsInt()
+  @IsOptional()
+  min_experience?: number;
 }
