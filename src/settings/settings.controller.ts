@@ -1,34 +1,58 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { SettingsService } from './settings.service';
 import { CreateSettingDto } from './dto/create-setting.dto';
 import { UpdateSettingDto } from './dto/update-setting.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../entities/user.entity';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('settings')
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN) // 👈 Только админы создают настройки
   create(@Body() createSettingDto: CreateSettingDto) {
     return this.settingsService.create(createSettingDto);
   }
 
+  @Public() // 👈 Публичный доступ, чтобы мобилка при старте всё скачала
   @Get()
   findAll() {
     return this.settingsService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.settingsService.findOne(+id);
+  @Public()
+  @Get(':key') // 👈 Поменяли id на key
+  findOne(@Param('key') key: string) {
+    return this.settingsService.findOne(key); // 👈 Убрали + (плюс), так как это строка
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateSettingDto: UpdateSettingDto) {
-    return this.settingsService.update(+id, updateSettingDto);
+  @Patch(':key')
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN) // 👈 Только админы меняют настройки
+  update(
+    @Param('key') key: string,
+    @Body() updateSettingDto: UpdateSettingDto,
+  ) {
+    return this.settingsService.update(key, updateSettingDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.settingsService.remove(+id);
+  @Delete(':key')
+  @UseGuards(JwtAuthGuard)
+  @Roles(UserRole.ADMIN)
+  remove(@Param('key') key: string) {
+    return this.settingsService.remove(key);
   }
 }

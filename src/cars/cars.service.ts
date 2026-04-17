@@ -8,13 +8,7 @@ import { Repository } from 'typeorm';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
 import { GetCatalogDto } from './dto/get-catalog-dto';
-import {
-  Car,
-  CarStatus,
-  BodyType,
-  Transmission,
-  FuelType,
-} from '../entities/car.entity';
+import { Car, CarStatus } from '../entities/car.entity';
 import { CarImage } from 'src/entities/car-image.entity';
 import { User, UserRole } from '../entities/user.entity';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
@@ -238,7 +232,6 @@ export class CarsService {
     } else if (query.sort_by === 'price_desc') {
       qb.orderBy('car.price_per_day', 'DESC');
     } else if (query.sort_by === 'rating_desc') {
-      // Сортировка по подзапросу
       qb.addSelect((subQuery) => {
         return subQuery
           .select('COALESCE(AVG(r.rating), 0)', 'avg_rating')
@@ -250,8 +243,13 @@ export class CarsService {
       qb.orderBy('car.created_at', 'DESC');
     }
 
-    // Выполняем основной запрос
+    // Вторичная сортировка от дубликатов
+    qb.addOrderBy('car.id', 'DESC');
+
+    // 🔥 👇 ВОТ ЭТА СТРОЧКА ВЕРНЕТ ПАГИНАЦИЮ К ЖИЗНИ
     qb.skip(skip).take(limit);
+
+    // Только после skip и take делаем запрос к БД!
     const [data, total] = await qb.getManyAndCount();
 
     // 8. 🛠 РЕШЕНИЕ ПРОБЛЕМЫ: РУЧНОЙ МАППИНГ РЕЙТИНГА

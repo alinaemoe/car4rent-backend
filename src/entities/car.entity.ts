@@ -17,52 +17,11 @@ import { Feature } from './feature.entity';
 import { Rental } from './rental.entity';
 import { Review } from './review.entity';
 
+// Оставляем только системный статус, так как он влияет на жесткую бизнес-логику бэкенда
 export enum CarStatus {
   AVAILABLE = 'AVAILABLE',
   RENTED = 'RENTED',
   MAINTENANCE = 'MAINTENANCE',
-}
-
-export enum Transmission {
-  MANUAL = 'MANUAL',
-  AUTOMATIC = 'AUTOMATIC',
-  ROBOT = 'ROBOT',
-}
-
-export enum FuelType {
-  PETROL = 'PETROL',
-  DIESEL = 'DIESEL',
-  ELECTRIC = 'ELECTRIC',
-  HYBRID = 'HYBRID',
-}
-
-// 👇 НОВЫЕ ENUM'Ы ДЛЯ ФИЛЬТРОВ
-export enum BodyType {
-  SEDAN = 'SEDAN',
-  SUV = 'SUV',
-  HATCHBACK = 'HATCHBACK',
-  COUPE = 'COUPE',
-  CABRIOLET = 'CABRIOLET',
-  MINIVAN = 'MINIVAN',
-}
-
-export enum DriveType {
-  FWD = 'FWD', // Передний
-  RWD = 'RWD', // Задний
-  AWD = 'AWD', // Полный
-}
-
-export enum CarColor {
-  WHITE = 'WHITE',
-  BLACK = 'BLACK',
-  GREY = 'GREY',
-  RED = 'RED',
-  BLUE = 'BLUE',
-  GREEN = 'GREEN',
-  YELLOW = 'YELLOW',
-  BROWN = 'BROWN',
-  PINK = 'PINK',
-  ORANGE = 'ORANGE',
 }
 
 @Entity('cars')
@@ -85,35 +44,36 @@ export class Car {
   @Column({ unique: true })
   vin: string;
 
-  @Column({ type: 'enum', enum: CarColor, default: CarColor.WHITE })
-  color: CarColor;
-
   @Column({ type: 'jsonb', nullable: true })
   description: Record<string, string>;
 
   @Column({ type: 'enum', enum: CarStatus, default: CarStatus.AVAILABLE })
   status: CarStatus;
 
-  @Column({ type: 'enum', enum: BodyType, default: BodyType.SEDAN })
-  body_type: BodyType;
+  // 👇 ТЕПЕРЬ ЭТО ПРОСТО СТРОКИ. Сюда будут писаться 'SEDAN', 'RED', 'AUTOMATIC' из словарей
+  @Column()
+  color: string;
 
-  @Column({ type: 'enum', enum: DriveType, default: DriveType.FWD })
-  drive_type: DriveType;
+  @Column()
+  body_type: string;
 
-  @Column({ type: 'enum', enum: Transmission })
-  transmission: Transmission;
+  @Column()
+  drive_type: string;
 
-  @Column({ type: 'enum', enum: FuelType })
-  fuel_type: FuelType;
+  @Column()
+  transmission: string;
 
-  // 👇 НОВЫЕ ПОЛЯ ИЗ ТВОЕГО СПИСКА
+  @Column()
+  fuel_type: string;
+
+  // Характеристики
   @Column({ type: 'int', nullable: true })
-  horsepower: number; // Мощность (л.с.)
+  horsepower: number;
 
   @Column('decimal', { precision: 4, scale: 1, nullable: true })
-  fuel_consumption: number; // Расход топлива (л/100км)
+  fuel_consumption: number;
 
-  // Prices and Limits
+  // Цены и Лимиты
   @Column('decimal', { precision: 10, scale: 2 })
   price_per_day: number;
 
@@ -124,9 +84,9 @@ export class Car {
   price_per_km_over_limit: number;
 
   @Column({ default: 0 })
-  current_mileage: number; // Пробег машины
+  current_mileage: number;
 
-  // СВЯЗИ
+  // Связи
   @ManyToOne(() => User, (user) => user.my_cars, { nullable: true })
   @JoinColumn({ name: 'owner_id' })
   owner: User | null;
@@ -139,7 +99,7 @@ export class Car {
   images: CarImage[];
 
   @ManyToMany(() => Feature)
-  @JoinTable({ name: 'car_features' }) // Эта таблица нужна будет для фильтрации по опциям
+  @JoinTable({ name: 'car_features' })
   features: Feature[];
 
   @OneToMany(() => Rental, (rental) => rental.car)

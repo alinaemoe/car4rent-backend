@@ -1,12 +1,4 @@
-import {
-  Car,
-  CarStatus,
-  BodyType,
-  Transmission,
-  FuelType,
-  DriveType,
-  CarColor,
-} from '../../entities/car.entity';
+import { Car, CarStatus } from '../../entities/car.entity';
 export interface GetCatalogDto {
   page?: number;
   limit?: number;
@@ -16,12 +8,12 @@ export interface GetCatalogDto {
 
   // Массивы фильтров (строки, разделенные запятой от фронта, или готовые массивы)
   brands?: string | string[];
-  body_types?: string | BodyType[];
-  transmissions?: string | Transmission[];
-  fuel_types?: string | FuelType[];
-  drive_types?: string | DriveType[];
+  body_types?: string | string[];
+  transmissions?: string | string[];
+  fuel_types?: string | string[];
+  drive_types?: string | string[];
   feature_ids?: string | number[]; // ID доп. опций
-  colors?: string | CarColor[];
+  colors?: string | string[];
 
   // Диапазоны (Range Sliders)
   min_price?: number;
