@@ -38,6 +38,14 @@ export class User {
   password_hash: string;
 
   @Column({ nullable: true })
+  @Exclude() // Прячем от фронтенда
+  verification_otp_hash: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  @Exclude()
+  otp_expires_at: Date | null;
+
+  @Column({ nullable: true })
   @Exclude() // Прячем его от выдачи на фронтенд, как и пароль
   hashed_refresh_token: string | null;
 

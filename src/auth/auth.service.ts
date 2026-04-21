@@ -3,17 +3,23 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
+  ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { jwtConstants } from './constants';
+import { EmailService } from '../email/email.service';
+import { RegisterDto } from './dto/register.dto';
+import { UserStatus } from 'src/entities/user.entity';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   // 👇 Вспомогательный метод: Генерирует сразу два токена
@@ -84,5 +90,104 @@ export class AuthService {
     // Просто затираем хэш токена в базе (ставим null)
     await this.usersService.updateRefreshToken(userId, null);
     return { message: 'Logged out successfully' };
+  }
+
+  async register(dto: RegisterDto) {
+    // 1. Ищем существующего юзера (используем const!)
+    const existingUser = await this.usersService.findByEmail(dto.email);
+
+    if (existingUser) {
+      if (existingUser.is_verified) {
+        throw new ConflictException(
+          'Пользователь с таким email уже существует',
+        );
+      }
+      // Удаляем "мертвый" неподтвержденный аккаунт
+      await this.usersService.remove(existingUser.id);
+    }
+
+    // 2. Создаем НОВОГО пользователя в статусе PENDING
+    // Используем новую переменную newUser!
+    const newUser = await this.usersService.create({
+      ...dto,
+      is_verified: false,
+      status: UserStatus.PENDING_VERIFICATION, // 👈 Теперь всё строго по типам, без as any
+    });
+
+    // 3. Генерируем 6-значный OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const salt = await bcrypt.genSalt();
+    const otpHash = await bcrypt.hash(otp, salt);
+
+    // Код живет 15 минут
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    // 4. Сохраняем код и шлем письмо (используем newUser.id и newUser.email)
+    await this.usersService.updateOtpDetails(newUser.id, otpHash, expiresAt);
+    await this.emailService.sendEmailVerificationOTP(newUser.email, otp);
+
+    return { message: 'Код подтверждения отправлен на почту' };
+  }
+
+  // 5. ВЕРИФИКАЦИЯ EMAIL
+  async verifyEmail(email: string, otp: string) {
+    const user = await this.usersService.findByEmail(email);
+
+    if (!user) {
+      throw new UnauthorizedException('Пользователь не найден');
+    }
+    if (user.is_verified) {
+      throw new BadRequestException('Email уже подтвержден');
+    }
+    if (!user.otp_expires_at || user.otp_expires_at < new Date()) {
+      throw new BadRequestException('Код подтверждения истек');
+    }
+
+    // Сравниваем присланный OTP с хэшем в базе
+    const isOtpValid = await bcrypt.compare(otp, user.verification_otp_hash);
+    if (!isOtpValid) {
+      throw new BadRequestException('Неверный код подтверждения');
+    }
+
+    // Если всё ок — верифицируем
+    await this.usersService.verifyUser(user.id);
+
+    // Сразу генерируем токены, чтобы юзер был залогинен
+    const tokens = await this.getTokens(user.id, user.email, user.roles);
+    await this.updateRefreshTokenHash(user.id, tokens.refresh_token);
+
+    return {
+      message: 'Email успешно подтвержден',
+      ...tokens,
+      user: {
+        id: user.id,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email: user.email,
+        roles: user.roles,
+      },
+    };
+  }
+
+  // 6. ПОВТОРНАЯ ОТПРАВКА КОДА
+  async resendOtp(email: string) {
+    const user = await this.usersService.findByEmail(email);
+
+    if (!user) throw new UnauthorizedException('Пользователь не найден');
+    if (user.is_verified)
+      throw new BadRequestException('Email уже подтвержден');
+
+    const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const salt = await bcrypt.genSalt();
+    const otpHash = await bcrypt.hash(newOtp, salt);
+
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    await this.usersService.updateOtpDetails(user.id, otpHash, expiresAt);
+    await this.emailService.sendEmailVerificationOTP(user.email, newOtp);
+
+    return { message: 'Новый код подтверждения отправлен на почту' };
   }
 }

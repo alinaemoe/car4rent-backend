@@ -21,6 +21,7 @@ import { UserDocumentsModule } from './user-documents/user-documents.module';
 import { CarDamagesModule } from './car-damages/car-damages.module';
 import { FeaturesModule } from './features/features.module';
 import { LocationsModule } from './locations/locations.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { LocationsModule } from './locations/locations.module';
     CarDamagesModule,
     FeaturesModule,
     LocationsModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [

@@ -4,7 +4,7 @@ import { Repository, DeepPartial } from 'typeorm';
 import * as bcrypt from 'bcrypt'; // Import bcrypt
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from '../entities/user.entity';
+import { User, UserStatus } from '../entities/user.entity';
 
 @Injectable()
 export class UsersService {
@@ -91,6 +91,28 @@ export class UsersService {
   async updateRefreshToken(userId: string, hashedToken: string | null) {
     await this.usersRepository.update(userId, {
       hashed_refresh_token: hashedToken,
+    });
+  }
+
+  // 👇 ДОБАВИТЬ ЭТО В КОНЕЦ UsersService
+  async updateOtpDetails(
+    userId: string,
+    otpHash: string | null,
+    expiresAt: Date | null,
+  ) {
+    await this.usersRepository.update(userId, {
+      verification_otp_hash: otpHash,
+      otp_expires_at: expiresAt,
+    });
+  }
+
+  // И добавим метод обновления статуса верификации
+  async verifyUser(userId: string) {
+    await this.usersRepository.update(userId, {
+      is_verified: true,
+      status: UserStatus.ACTIVE,
+      verification_otp_hash: null, // Очищаем код после успешного входа
+      otp_expires_at: null,
     });
   }
 }

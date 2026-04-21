@@ -11,6 +11,8 @@ import {
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { RegisterDto } from './dto/register.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { Public } from './decorators/public.decorator';
 import { JwtService } from '@nestjs/jwt';
 import { jwtConstants } from './constants';
@@ -58,5 +60,25 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   logout(@Request() req) {
     return this.authService.logout(req.user.userId);
+  }
+
+  @Public()
+  @Post('register')
+  register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  verifyEmail(@Body() verifyDto: VerifyEmailDto) {
+    return this.authService.verifyEmail(verifyDto.email, verifyDto.otp);
+  }
+
+  @Public()
+  @Post('resend-otp')
+  @HttpCode(HttpStatus.OK)
+  resendOtp(@Body('email') email: string) {
+    return this.authService.resendOtp(email);
   }
 }
