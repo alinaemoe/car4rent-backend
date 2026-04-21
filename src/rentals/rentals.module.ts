@@ -5,11 +5,11 @@ import { RentalsController } from './rentals.controller';
 import { Rental } from '../entities/rental.entity';
 import { CarDamage } from 'src/entities/car-damage.entity';
 import { CarsModule } from '../cars/cars.module';
-import { CarsService } from 'src/cars/cars.service';
+import { RentalCronService } from './rental-cron.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Rental, CarDamage]), CarsModule],
   controllers: [RentalsController],
-  providers: [RentalsService],
+  providers: [RentalsService, RentalCronService],
 })
 export class RentalsModule {}
