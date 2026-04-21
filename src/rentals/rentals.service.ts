@@ -76,7 +76,24 @@ export class RentalsService {
 
     // 4. Price Calculation
     const days = this.calculateDays(start, end);
-    const calculatedPrice = days * car.price_per_day;
+    const basePrice = days * car.price_per_day;
+
+    let discountPercent = 0;
+    // Считаем скидку так же, как на фронте
+    if (car.discount_tiers) {
+      const tiers = Object.keys(car.discount_tiers)
+        .map(Number)
+        .sort((a, b) => b - a);
+      for (const tierDays of tiers) {
+        if (days >= tierDays) {
+          discountPercent = car.discount_tiers[tierDays];
+          break;
+        }
+      }
+    }
+
+    const discountAmount = Math.floor((basePrice * discountPercent) / 100);
+    const finalPrice = basePrice - discountAmount;
 
     const rental = this.rentalRepository.create({
       user: { id: targetUserId },
@@ -84,8 +101,8 @@ export class RentalsService {
       car,
       start_date: start,
       end_date: end,
-      base_price: calculatedPrice,
-      total_price: undefined,
+      base_price: finalPrice, // 👈 Пишем уже ИТОГОВУЮ цену за аренду
+      total_price: finalPrice + Number(car.deposit_amount), // 👈 Плюсуем залог
       status: RentalStatus.CREATED,
       pick_up_location: car.location ?? undefined,
       drop_off_location: car.location ?? undefined,
