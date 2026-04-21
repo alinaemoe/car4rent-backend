@@ -92,9 +92,10 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+  // 4. РЕГИСТРАЦИЯ
   async register(dto: RegisterDto) {
-    // 1. Ищем существующего юзера (используем const!)
     const existingUser = await this.usersService.findByEmail(dto.email);
+    let targetUserId: string;
 
     if (existingUser) {
       if (existingUser.is_verified) {
@@ -102,17 +103,28 @@ export class AuthService {
           'Пользователь с таким email уже существует',
         );
       }
-      // Удаляем "мертвый" неподтвержденный аккаунт
-      await this.usersService.remove(existingUser.id);
-    }
 
-    // 2. Создаем НОВОГО пользователя в статусе PENDING
-    // Используем новую переменную newUser!
-    const newUser = await this.usersService.create({
-      ...dto,
-      is_verified: false,
-      status: UserStatus.PENDING_VERIFICATION, // 👈 Теперь всё строго по типам, без as any
-    });
+      // 🔥 ВАЖНО: Вместо удаления (которое ломает БД из-за связей),
+      // мы просто ОБНОВЛЯЕМ данные этого "подвисшего" юзера новыми.
+      // UsersService.update сам захеширует новый пароль!
+      await this.usersService.update(existingUser.id, {
+        first_name: dto.first_name,
+        last_name: dto.last_name,
+        phone: dto.phone,
+        password: dto.password,
+      });
+
+      targetUserId = existingUser.id;
+    } else {
+      // Если юзера вообще не было — создаем нового
+      const newUser = await this.usersService.create({
+        ...dto,
+        is_verified: false,
+        status: UserStatus.PENDING_VERIFICATION,
+      });
+
+      targetUserId = newUser.id;
+    }
 
     // 3. Генерируем 6-значный OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -123,9 +135,9 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
-    // 4. Сохраняем код и шлем письмо (используем newUser.id и newUser.email)
-    await this.usersService.updateOtpDetails(newUser.id, otpHash, expiresAt);
-    await this.emailService.sendEmailVerificationOTP(newUser.email, otp);
+    // 4. Сохраняем код и шлем письмо
+    await this.usersService.updateOtpDetails(targetUserId, otpHash, expiresAt);
+    await this.emailService.sendEmailVerificationOTP(dto.email, otp);
 
     return { message: 'Код подтверждения отправлен на почту' };
   }

@@ -26,7 +26,7 @@ export class EmailService {
           </div>
         `,
       });
-      this.logger.log(`📧 OTP отправлен на ${email}`);
+      this.logger.log(`📧 OTP отправлен на ${email}, ${otp}`);
     } catch (error) {
       this.logger.error(`❌ Ошибка отправки Email на ${email}:`, error);
       throw new Error('Не удалось отправить email');
