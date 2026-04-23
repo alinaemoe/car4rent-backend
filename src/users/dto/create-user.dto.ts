@@ -41,9 +41,14 @@ export class CreateUserDto {
   @IsEnum(UserStatus)
   status?: UserStatus;
 
+  // 👇 ЗАМЕНИЛИ СТАРОЕ ПОЛЕ НА ДВА НОВЫХ
   @IsOptional()
   @IsBoolean()
-  is_verified?: boolean;
+  is_email_verified?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  is_documents_verified?: boolean;
 
   @IsOptional()
   @IsString()

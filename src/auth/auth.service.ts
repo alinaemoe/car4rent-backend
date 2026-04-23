@@ -98,7 +98,7 @@ export class AuthService {
     let targetUserId: string;
 
     if (existingUser) {
-      if (existingUser.is_verified) {
+      if (existingUser.is_email_verified) {
         throw new ConflictException(
           'Пользователь с таким email уже существует',
         );
@@ -119,7 +119,8 @@ export class AuthService {
       // Если юзера вообще не было — создаем нового
       const newUser = await this.usersService.create({
         ...dto,
-        is_verified: false,
+        is_email_verified: false, // 👈
+        is_documents_verified: false, // 👈
         status: UserStatus.PENDING_VERIFICATION,
       });
 
@@ -149,7 +150,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Пользователь не найден');
     }
-    if (user.is_verified) {
+    if (user.is_email_verified) {
       throw new BadRequestException('Email уже подтвержден');
     }
     if (!user.otp_expires_at || user.otp_expires_at < new Date()) {
@@ -163,7 +164,7 @@ export class AuthService {
     }
 
     // Если всё ок — верифицируем
-    await this.usersService.verifyUser(user.id);
+    await this.usersService.verifyEmailSuccess(user.id);
 
     // Сразу генерируем токены, чтобы юзер был залогинен
     const tokens = await this.getTokens(user.id, user.email, user.roles);
@@ -187,7 +188,7 @@ export class AuthService {
     const user = await this.usersService.findByEmail(email);
 
     if (!user) throw new UnauthorizedException('Пользователь не найден');
-    if (user.is_verified)
+    if (user.is_email_verified)
       throw new BadRequestException('Email уже подтвержден');
 
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();

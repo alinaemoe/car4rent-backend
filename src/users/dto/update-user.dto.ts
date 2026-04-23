@@ -7,7 +7,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { UserRole, UserStatus } from 'src/entities/user.entity'; // Проверь путь к entity
+import { UserRole, UserStatus } from 'src/entities/user.entity';
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {
   // 1. РОЛИ
@@ -21,10 +21,14 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsEnum(UserStatus)
   status?: UserStatus;
 
-  // 3. ВЕРИФИКАЦИЯ (Админское поле)
+  // 3. ВЕРИФИКАЦИЯ (Админские поля) 👇 ЗАМЕНИЛИ СТАРОЕ ПОЛЕ НА ДВА НОВЫХ
   @IsOptional()
   @IsBoolean()
-  is_verified?: boolean;
+  is_email_verified?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  is_documents_verified?: boolean;
 
   // 4. КОММЕНТАРИЙ АДМИНА
   @IsOptional()
@@ -35,7 +39,6 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   // Refine берет данные из базы (first_name) и отправляет их обратно так же.
   // А NestJS по умолчанию ждет camelCase, если DTO не настроен.
   // Мы явно разрешаем snake_case поля:
-
   @IsOptional()
   @IsString()
   first_name?: string;

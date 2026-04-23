@@ -94,7 +94,7 @@ export class UserDocumentsService {
     await this.docRepo.save(doc);
 
     // Uncheck the verification box for the user
-    await this.userRepo.update(doc.user.id, { is_verified: false });
+    await this.userRepo.update(doc.user.id, { is_documents_verified: false });
 
     return doc;
   }
@@ -109,7 +109,7 @@ export class UserDocumentsService {
     const hasLicense = docs.some((d) => d.type === DocType.DRIVER_LICENSE);
 
     if (hasPassport && hasLicense) {
-      await this.userRepo.update(userId, { is_verified: true });
+      await this.userRepo.update(userId, { is_documents_verified: true });
     }
   }
 

@@ -72,7 +72,10 @@ export class User {
   avatar_url: string;
 
   @Column({ default: false })
-  is_verified: boolean; // Becomes true when the documents have been verified
+  is_email_verified: boolean;
+
+  @Column({ default: false })
+  is_documents_verified: boolean;
 
   // COMMUNICATIONS
   @OneToMany(() => UserDocument, (doc) => doc.user)

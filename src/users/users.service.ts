@@ -25,7 +25,8 @@ export class UsersService {
       first_name: createUserDto.first_name,
       last_name: createUserDto.last_name,
       phone: createUserDto.phone,
-      is_verified: createUserDto.is_verified ?? false,
+      is_email_verified: createUserDto.is_email_verified ?? false,
+      is_documents_verified: createUserDto.is_documents_verified ?? false,
       admin_comment: createUserDto.admin_comment ?? undefined,
     });
 
@@ -94,7 +95,22 @@ export class UsersService {
     });
   }
 
-  // 👇 ДОБАВИТЬ ЭТО В КОНЕЦ UsersService
+  async verifyEmailSuccess(userId: string) {
+    await this.usersRepository.update(userId, {
+      is_email_verified: true,
+      status: UserStatus.ACTIVE, // Почта подтверждена -> аккаунт активен
+      verification_otp_hash: null,
+      otp_expires_at: null,
+    });
+  }
+
+  // 👇 МЕТОД ДЛЯ ПОДТВЕРЖДЕНИЯ ДОКУМЕНТОВ
+  async setDocumentsVerified(userId: string, isVerified: boolean) {
+    await this.usersRepository.update(userId, {
+      is_documents_verified: isVerified,
+    });
+  }
+
   async updateOtpDetails(
     userId: string,
     otpHash: string | null,
@@ -103,16 +119,6 @@ export class UsersService {
     await this.usersRepository.update(userId, {
       verification_otp_hash: otpHash,
       otp_expires_at: expiresAt,
-    });
-  }
-
-  // И добавим метод обновления статуса верификации
-  async verifyUser(userId: string) {
-    await this.usersRepository.update(userId, {
-      is_verified: true,
-      status: UserStatus.ACTIVE,
-      verification_otp_hash: null, // Очищаем код после успешного входа
-      otp_expires_at: null,
     });
   }
 }
