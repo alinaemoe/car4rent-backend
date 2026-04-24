@@ -31,20 +31,26 @@ export class UserDocumentsService {
     });
   }
 
-  async upload(userId: string, dto: CreateDocumentDto) {
+  // 👇 ОБНОВЛЕННЫЙ МЕТОД ЗАГРУЗКИ
+  async upload(
+    userId: string,
+    type: DocType,
+    imageUrl: string,
+    documentNumber?: string,
+  ) {
     // Checking for duplicates
     const existing = await this.docRepo.findOne({
-      where: { user: { id: userId }, type: dto.type },
+      where: { user: { id: userId }, type: type },
     });
 
     if (existing && existing.status !== DocStatus.REJECTED) {
       throw new BadRequestException(
-        'The document has already been uploaded or is being checked.',
+        'Этот документ уже загружен или находится на проверке.',
       );
     }
 
     // OCR IMITATION (Scanning)
-    let finalDocNumber = dto.document_number;
+    let finalDocNumber = documentNumber;
     if (!finalDocNumber) {
       // Generate a random string if the user has not entered the number manually.
       finalDocNumber = Math.random()
@@ -53,10 +59,11 @@ export class UserDocumentsService {
         .toUpperCase();
     }
 
+    // Обновляем старый отклоненный или создаем новый
     const doc =
-      existing || this.docRepo.create({ user: { id: userId }, type: dto.type });
+      existing || this.docRepo.create({ user: { id: userId }, type: type });
 
-    doc.image_url = dto.image_url;
+    doc.image_url = imageUrl; // 👈 Сюда прилетит чистая ссылка из Cloudinary
     doc.document_number = finalDocNumber;
     doc.status = DocStatus.PENDING;
     doc.rejection_reason = null;

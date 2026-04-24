@@ -4,9 +4,10 @@ import { User } from 'src/entities/user.entity';
 import { UserDocument } from 'src/entities/user-document.entity';
 import { UserDocumentsService } from './user-documents.service';
 import { UserDocumentsController } from './user-documents.controller';
+import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([UserDocument, User])],
+  imports: [TypeOrmModule.forFeature([UserDocument, User]), CloudinaryModule],
   controllers: [UserDocumentsController],
   providers: [UserDocumentsService],
   exports: [UserDocumentsService],
