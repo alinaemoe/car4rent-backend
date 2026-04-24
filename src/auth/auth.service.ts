@@ -64,7 +64,7 @@ export class AuthService {
   // 2. ОБНОВЛЕНИЕ ТОКЕНА (REFRESH)
   async refreshTokens(userId: string, refreshToken: string) {
     // 1. Ищем юзера
-    const user = await this.usersService.findOne(userId);
+    const user = await this.usersService.findByIdForAuth(userId);
     if (!user || !user.hashed_refresh_token) {
       throw new ForbiddenException('Доступ запрещен (нет токена)');
     }

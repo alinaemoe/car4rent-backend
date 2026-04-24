@@ -42,14 +42,35 @@ export class UsersService {
   }
 
   async findOne(id: string) {
+    const user = await this.usersRepository.findOne({
+      where: { id },
+      relations: ['documents'], // 👈 ВОТ ЭТА МАГИЯ ПОДТЯНЕТ ДОКУМЕНТЫ
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    // Аккуратно отрезаем всё секьюрное перед отправкой
+    const {
+      password_hash,
+      verification_otp_hash,
+      otp_expires_at,
+      hashed_refresh_token,
+      ...safeUser
+    } = user;
+
+    return safeUser;
+  }
+
+  async findByIdForAuth(id: string) {
     const user = await this.usersRepository.findOne({ where: { id } });
 
     if (!user) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
 
-    const { password_hash, ...safeUser } = user;
-    return safeUser;
+    return user; // Ничего не отрезаем!
   }
 
   // Critical for Auth: Find user to validate password
