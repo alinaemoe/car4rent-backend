@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreatePartnershipDto } from './dto/create-partnership-request.dto';
@@ -23,6 +28,13 @@ export class PartnershipRequestsService {
     });
 
     return await this.repo.save(request);
+  }
+
+  async findMy(userId: string) {
+    return this.repo.find({
+      where: { user: { id: userId } },
+      order: { created_at: 'DESC' }, // Свежие сверху
+    });
   }
 
   async findOne(id: number) {
@@ -51,5 +63,28 @@ export class PartnershipRequestsService {
 
     request.status = status;
     return await this.repo.save(request);
+  }
+
+  async remove(id: number, userId: string) {
+    const request = await this.repo.findOne({
+      where: { id },
+      relations: ['user'],
+    });
+
+    if (!request) {
+      throw new NotFoundException('Заявка не найдена');
+    }
+
+    // Проверяем, что удаляет именно автор
+    if (request.user?.id !== userId) {
+      throw new ForbiddenException('Вы не можете удалить чужую заявку');
+    }
+
+    // Разрешаем удалять только отклоненные
+    if (request.status !== RequestStatus.REJECTED) {
+      throw new BadRequestException('Можно удалить только отклоненную заявку');
+    }
+
+    return await this.repo.remove(request);
   }
 }

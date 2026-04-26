@@ -5,11 +5,13 @@ import {
   Body,
   Patch,
   Param,
+  Delete,
   ParseIntPipe,
   UseGuards,
   Request,
   UseInterceptors,
   UploadedFiles,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { PartnershipRequestsService } from './partnership-requests.service';
@@ -50,16 +52,22 @@ export class PartnershipRequestsController {
     return this.service.create(dto, photoUrls, userId);
   }
 
-  @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findOne(id);
+  @Get('my')
+  findMy(@Request() req) {
+    const userId = req.user.userId || req.user.id;
+    return this.service.findMy(userId);
   }
 
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   findAll() {
     return this.service.findAll();
+  }
+
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(id);
   }
 
   @Patch(':id')
@@ -69,5 +77,11 @@ export class PartnershipRequestsController {
     @Body() dto: UpdatePartnershipStatusDto,
   ) {
     return this.service.updateStatus(id, dto.status);
+  }
+
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const userId = req.user.userId || req.user.id;
+    return this.service.remove(id, userId);
   }
 }
