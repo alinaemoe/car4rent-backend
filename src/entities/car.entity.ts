@@ -50,6 +50,12 @@ export class Car {
   @Column({ type: 'enum', enum: CarStatus, default: CarStatus.AVAILABLE })
   status: CarStatus;
 
+  @Column('decimal', { precision: 2, scale: 1, default: 0 })
+  avg_rating: number;
+
+  @Column({ type: 'int', default: 0 })
+  reviews_count: number;
+
   // 👇 ТЕПЕРЬ ЭТО ПРОСТО СТРОКИ. Сюда будут писаться 'SEDAN', 'RED', 'AUTOMATIC' из словарей
   @Column()
   color: string;

@@ -9,7 +9,7 @@ import { Repository, IsNull } from 'typeorm';
 import { Review } from '../entities/review.entity';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { Rental, RentalStatus } from '../entities/rental.entity';
-import { Car } from '../entities/car.entity';
+import { Car } from '../entities/car.entity'; // 👈 Добавили
 
 @Injectable()
 export class ReviewsService {
@@ -18,6 +18,8 @@ export class ReviewsService {
     private reviewRepo: Repository<Review>,
     @InjectRepository(Rental)
     private rentalRepo: Repository<Rental>,
+    @InjectRepository(Car) // 👈 Инжектим репозиторий авто
+    private carRepo: Repository<Car>,
   ) {}
 
   async create(userId: string, dto: CreateReviewDto) {
@@ -30,20 +32,22 @@ export class ReviewsService {
         relations: ['user', 'car'],
       });
 
-      if (!rental) throw new NotFoundException('No trip found');
+      if (!rental) throw new NotFoundException('Поездка не найдена');
 
       if (rental.user.id !== userId) {
-        throw new ForbiddenException('This is not your journey');
+        throw new ForbiddenException('Это не ваша поездка');
       }
       if (rental.status !== RentalStatus.COMPLETED) {
-        throw new BadRequestException('The journey must be completed');
+        throw new BadRequestException(
+          'Оценить можно только завершенную поездку',
+        );
       }
 
       const existing = await this.reviewRepo.findOne({
         where: { rental: { id: dto.rental_id } },
       });
       if (existing)
-        throw new BadRequestException('Have you already rated this trip?');
+        throw new BadRequestException('Вы уже оценивали эту поездку');
 
       car = rental.car;
     }
@@ -56,7 +60,28 @@ export class ReviewsService {
       car: car ?? undefined,
     });
 
-    return await this.reviewRepo.save(review);
+    const savedReview = await this.reviewRepo.save(review);
+
+    // 🔥 ПЕРЕСЧЕТ РЕЙТИНГА АВТОМОБИЛЯ 🔥
+    if (car) {
+      // Ищем все отзывы для этой машины
+      const allCarReviews = await this.reviewRepo.find({
+        where: { car: { id: car.id } },
+      });
+
+      // Считаем сумму звезд
+      const totalStars = allCarReviews.reduce((sum, r) => sum + r.rating, 0);
+
+      // Считаем среднее (с одним знаком после запятой, например 4.8)
+      const avgRating = totalStars / allCarReviews.length;
+      car.avg_rating = Math.round(avgRating * 10) / 10;
+      car.reviews_count = allCarReviews.length;
+
+      // Сохраняем обновленную машину
+      await this.carRepo.save(car);
+    }
+
+    return savedReview;
   }
 
   async findCarReviews(carId: number) {
