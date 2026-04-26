@@ -110,4 +110,15 @@ export class CarsController {
   removeImage(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.carsService.removeImage(id, req.user);
   }
+
+  @Patch(':id/visibility')
+  @Roles(UserRole.LESSOR)
+  toggleVisibility(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('isVisible') isVisible: boolean,
+    @Request() req,
+  ) {
+    const userId = req.user.userId || req.user.id;
+    return this.carsService.toggleVisibility(id, userId, isVisible);
+  }
 }

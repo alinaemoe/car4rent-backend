@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -454,5 +455,28 @@ export class CarsService {
     car.current_mileage = mileage;
     car.status = CarStatus.AVAILABLE;
     return this.carsRepository.save(car);
+  }
+
+  async toggleVisibility(id: number, userId: string, isVisible: boolean) {
+    const car = await this.carsRepository.findOne({
+      where: { id },
+      relations: ['owner'],
+    });
+
+    if (!car) throw new NotFoundException('Машина не найдена');
+
+    if (car.owner?.id !== userId) {
+      throw new ForbiddenException('Это не ваш автомобиль');
+    }
+
+    // Блокируем выключение, если на машине кто-то едет
+    if (!isVisible && car.status === CarStatus.RENTED) {
+      throw new BadRequestException(
+        'Нельзя скрыть автомобиль, который сейчас находится в поездке',
+      );
+    }
+
+    car.status = isVisible ? CarStatus.AVAILABLE : CarStatus.MAINTENANCE;
+    return await this.carsRepository.save(car);
   }
 }
