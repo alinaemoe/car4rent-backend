@@ -7,6 +7,7 @@ import {
   Body,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -23,22 +24,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
-  // 1. Получить статистику партнера (Для моб. приложения)
-  @Get('lessor/stats')
-  @Roles(UserRole.LESSOR)
-  getLessorStats(@Request() req) {
-    const userId = req.user.userId || req.user.id;
-    return this.transactionsService.getLessorStats(userId);
-  }
-
-  // 2. Получить историю начислений партнера
-  @Get('lessor/history')
-  @Roles(UserRole.LESSOR)
-  getLessorHistory(@Request() req) {
-    const userId = req.user.userId || req.user.id;
-    return this.transactionsService.getLessorHistory(userId);
-  }
-
   // 3. Получить ВСЕ транзакции (Для Админа)
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
@@ -54,5 +39,27 @@ export class TransactionsController {
     @Body() dto: UpdateTransactionStatusDto,
   ) {
     return this.transactionsService.updatePayoutStatus(id, dto.payout_status);
+  }
+
+  @Get('lessor/stats')
+  @Roles(UserRole.LESSOR)
+  getLessorStats(
+    @Request() req,
+    @Query('month') month?: string,
+    @Query('year') year?: string,
+  ) {
+    const userId = req.user.userId || req.user.id;
+    return this.transactionsService.getLessorStats(userId, month, year);
+  }
+
+  @Get('lessor/history')
+  @Roles(UserRole.LESSOR)
+  getLessorHistory(
+    @Request() req,
+    @Query('month') month?: string,
+    @Query('year') year?: string,
+  ) {
+    const userId = req.user.userId || req.user.id;
+    return this.transactionsService.getLessorHistory(userId, month, year);
   }
 }

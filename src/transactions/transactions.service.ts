@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { Transaction, PayoutStatus } from '../entities/transaction.entity';
 
 @Injectable()
@@ -27,28 +27,38 @@ export class TransactionsService {
     return await this.transactionRepo.save(transaction);
   }
 
-  // Для мобильного Дашборда Партнера
-  async getLessorStats(lessorId: string) {
+  async getLessorStats(
+    lessorId: string,
+    monthParam?: string,
+    yearParam?: string,
+  ) {
+    // В JS месяцы начинаются с 0, поэтому вычитаем 1 из переданного параметра
+    const targetMonth = monthParam
+      ? parseInt(monthParam, 10) - 1
+      : new Date().getMonth();
+    const targetYear = yearParam
+      ? parseInt(yearParam, 10)
+      : new Date().getFullYear();
+
     const transactions = await this.transactionRepo.find({
       where: { lessor: { id: lessorId } },
     });
-
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
 
     let totalEarnedMonth = 0;
     let pendingPayout = 0;
 
     transactions.forEach((tx) => {
       const txDate = new Date(tx.created_at);
-      // Считаем заработок за текущий месяц
+
+      // Считаем заработок ТОЛЬКО за выбранный месяц
       if (
-        txDate.getMonth() === currentMonth &&
-        txDate.getFullYear() === currentYear
+        txDate.getMonth() === targetMonth &&
+        txDate.getFullYear() === targetYear
       ) {
         totalEarnedMonth += Number(tx.lessor_income);
       }
-      // Считаем общий долг сервиса перед партнером
+
+      // Долг считаем за все время (или можно тоже ограничить, зависит от бизнеса)
       if (tx.payout_status === PayoutStatus.PENDING) {
         pendingPayout += Number(tx.lessor_income);
       }
@@ -60,10 +70,28 @@ export class TransactionsService {
     };
   }
 
-  // Для мобилы (история начислений)
-  async getLessorHistory(lessorId: string) {
+  // 👇 ОБНОВЛЕННЫЙ: История транзакций (Используем SQL фильтрацию Between для скорости)
+  async getLessorHistory(
+    lessorId: string,
+    monthParam?: string,
+    yearParam?: string,
+  ) {
+    const targetMonth = monthParam
+      ? parseInt(monthParam, 10) - 1
+      : new Date().getMonth();
+    const targetYear = yearParam
+      ? parseInt(yearParam, 10)
+      : new Date().getFullYear();
+
+    // Создаем границы: от первого дня месяца до последнего
+    const startDate = new Date(targetYear, targetMonth, 1);
+    const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59, 999);
+
     return this.transactionRepo.find({
-      where: { lessor: { id: lessorId } },
+      where: {
+        lessor: { id: lessorId },
+        created_at: Between(startDate, endDate), // 👈 Ищем строго в рамках месяца
+      },
       relations: ['car', 'rental'],
       order: { created_at: 'DESC' },
     });
