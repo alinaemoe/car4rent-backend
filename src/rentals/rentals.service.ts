@@ -14,6 +14,11 @@ import { CarDamage } from 'src/entities/car-damage.entity';
 import { CarsService } from '../cars/cars.service';
 import { UserRole } from '../entities/user.entity';
 import { CarStatus } from '../entities/car.entity';
+import {
+  Transaction,
+  TransactionType,
+  PayoutStatus,
+} from '../entities/transaction.entity';
 
 @Injectable()
 export class RentalsService {
@@ -21,6 +26,8 @@ export class RentalsService {
     @InjectRepository(Rental) private rentalRepository: Repository<Rental>,
     @InjectRepository(CarDamage)
     private damageRepository: Repository<CarDamage>,
+    @InjectRepository(Transaction)
+    private transactionRepository: Repository<Transaction>,
     private carsService: CarsService,
   ) {}
 
@@ -234,7 +241,7 @@ export class RentalsService {
   async finish(id: number, finishDto: FinishRentalDto) {
     const rental = await this.rentalRepository.findOne({
       where: { id },
-      relations: ['car'],
+      relations: ['car', 'car.owner'], // 👈 КРИТИЧНО ВАЖНО: загружаем владельца машины!
     });
 
     if (!rental) throw new NotFoundException('Rental not found');
@@ -246,10 +253,8 @@ export class RentalsService {
       throw new BadRequestException('Only active rentals can be completed.');
     }
 
-    // 👇 We retrieve damages from DTO
     const { end_mileage, actual_return_date, end_fuel, damages } = finishDto;
 
-    // 👇 TIME LOGIC: Take from DTO or current
     const returnDate = actual_return_date
       ? new Date(actual_return_date)
       : new Date();
@@ -260,8 +265,6 @@ export class RentalsService {
       );
     }
 
-    // 1. Mileage
-    // Important point: start_mileage must be recorded at the time of issue (see below)
     const startMileage = rental.start_mileage || rental.car.current_mileage;
 
     if (end_mileage < startMileage) {
@@ -274,24 +277,18 @@ export class RentalsService {
 
     const plannedDays = this.calculateDays(rental.start_date, rental.end_date);
     const totalLimit = rental.car.mileage_limit_per_day * plannedDays;
-    const distanceDriven =
-      end_mileage - (rental.start_mileage || rental.car.current_mileage);
+    const distanceDriven = end_mileage - startMileage;
 
     if (distanceDriven > totalLimit) {
       penalty +=
         (distanceDriven - totalLimit) * rental.car.price_per_km_over_limit;
     }
 
-    // B. Penalty for late return (Overdue)
-    // Compare returnDate (actual) with rental.end_date (planned)
     if (returnDate > rental.end_date) {
       const overdueDays = this.calculateDays(rental.end_date, returnDate);
-      // For example, penalty: daily rate * 2
       penalty += overdueDays * (rental.car.price_per_day * 2);
     }
 
-    // B. ⛽️ FUEL PENALTY (New logic)
-    // Let's say: 1% shortage = 2 y.e. (or you can take it from the settings)
     const FUEL_PENALTY_PER_PERCENT = 2.0;
 
     if (end_fuel < rental.start_fuel) {
@@ -299,7 +296,6 @@ export class RentalsService {
       penalty += missingFuel * FUEL_PENALTY_PER_PERCENT;
     }
 
-    // 💥 DAMAGES LOGIC
     if (damages && damages.length > 0) {
       for (const dmgDto of damages) {
         penalty += dmgDto.repair_cost;
@@ -325,7 +321,35 @@ export class RentalsService {
     rental.total_price = Number(rental.base_price) + penalty;
     rental.status = RentalStatus.COMPLETED;
 
-    // 5. Updating the machine
+    // 💥 TRANSACTIONS LOGIC START 💥
+    const carOwner = rental.car.owner;
+    const COMMISSION_RATE = 0.2; // 20% комиссия нашего сервиса
+
+    let systemFee = Number(rental.total_price);
+    let lessorIncome = 0;
+    let payoutStatus = PayoutStatus.NOT_APPLICABLE;
+
+    // Если у машины есть владелец (это партнер), то пилим деньги
+    if (carOwner) {
+      systemFee = Number(rental.total_price) * COMMISSION_RATE;
+      lessorIncome = Number(rental.total_price) - systemFee;
+      payoutStatus = PayoutStatus.PENDING; // Ставим "В ожидании выплаты"
+    }
+
+    const transaction = this.transactionRepository.create({
+      rental: rental,
+      car: rental.car,
+      lessor: carOwner || null, // Записываем кому платить (если есть)
+      type: TransactionType.RENTAL_PAYMENT,
+      total_amount: rental.total_price,
+      system_fee: systemFee,
+      lessor_income: lessorIncome,
+      payout_status: payoutStatus,
+    });
+
+    await this.transactionRepository.save(transaction);
+    // 💥 TRANSACTIONS LOGIC END 💥
+
     await this.carsService.updateMileageAndStatus(
       rental.car.id,
       end_mileage,
