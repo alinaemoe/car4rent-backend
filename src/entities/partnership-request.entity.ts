@@ -39,6 +39,9 @@ export class PartnershipRequest {
   @Column()
   car_year: number;
 
+  @Column('simple-array', { nullable: true })
+  photos: string[];
+
   @Column({ type: 'enum', enum: RequestStatus, default: RequestStatus.NEW })
   status: RequestStatus;
 

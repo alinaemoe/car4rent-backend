@@ -8,41 +8,61 @@ import {
   ParseIntPipe,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { PartnershipRequestsService } from './partnership-requests.service';
 import { CreatePartnershipDto } from './dto/create-partnership-request.dto';
 import { UpdatePartnershipStatusDto } from './dto/update-partnership-request.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../entities/user.entity';
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
-import { Public } from '../auth/decorators/public.decorator';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CloudinaryService } from '../cloudinary/cloudinary.service'; // 👈 Импортируем Cloudinary
 
 @Controller('partnership-requests')
+@UseGuards(JwtAuthGuard) // 👈 Закрываем роут, заявки только для своих
 export class PartnershipRequestsController {
-  constructor(private readonly service: PartnershipRequestsService) {}
+  constructor(
+    private readonly service: PartnershipRequestsService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
-  // 1. Create a request (Public)
-  // We cannot easily get req.user here if it is set to @Public.
-  // So for now, let's leave it without binding user_id, OR, if you want to complicate things:
-  // We need to make a custom Guard that doesn't block but parses the token.
-  // FOR SIMPLICITY: Let's make it public.
-  @Public()
   @Post()
-  create(@Body() dto: CreatePartnershipDto) {
-    // If it is really necessary to link the user, the front end can send the userId in the body (not secure)
-    // Or we can leave user: null. The main thing for the business is the phone number.
-    return this.service.create(dto);
+  @UseInterceptors(FilesInterceptor('photos', 5)) // 👈 Перехватываем массив файлов (до 5 штук)
+  async create(
+    @Request() req,
+    @Body() dto: CreatePartnershipDto,
+    @UploadedFiles() files: Express.Multer.File[], // 👈 Достаем физические файлы
+  ) {
+    const userId = req.user.userId || req.user.id;
+    let photoUrls: string[] = [];
+
+    // Если юзер прикрепил файлы, грузим их в облако
+    if (files && files.length > 0) {
+      // Promise.all позволяет загрузить все 5 фоток параллельно, что супер быстро!
+      const uploadPromises = files.map((file) =>
+        this.cloudinaryService.uploadImage(file),
+      );
+      photoUrls = await Promise.all(uploadPromises);
+    }
+
+    return this.service.create(dto, photoUrls, userId);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.service.findOne(id);
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   findAll() {
     return this.service.findAll();
   }
 
-  @Patch(':id/status')
-  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   updateStatus(
     @Param('id', ParseIntPipe) id: number,

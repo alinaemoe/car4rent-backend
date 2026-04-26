@@ -14,18 +14,33 @@ export class PartnershipRequestsService {
     private repo: Repository<PartnershipRequest>,
   ) {}
 
-  async create(dto: CreatePartnershipDto, userId?: string) {
+  async create(dto: CreatePartnershipDto, photos: string[], userId: string) {
     const request = this.repo.create({
       ...dto,
-      user: userId ? { id: userId } : undefined, // We link if the user is logged in
+      car_year: Number(dto.car_year), // Принудительно делаем числом
+      photos: photos, // 👈 Сохраняем ссылки на картинки
+      user: { id: userId }, // 👈 Жестко линкуем юзера
     });
 
     return await this.repo.save(request);
   }
 
+  async findOne(id: number) {
+    const request = await this.repo.findOne({
+      where: { id },
+      relations: ['user'], // Подтягиваем юзера для страницы просмотра
+    });
+
+    if (!request) {
+      throw new NotFoundException(`Заявка с ID ${id} не найдена`);
+    }
+
+    return request;
+  }
+
   async findAll() {
     return this.repo.find({
-      relations: ['user'], // The administrator will see whether the partner is registered.
+      relations: ['user'],
       order: { created_at: 'DESC' },
     });
   }

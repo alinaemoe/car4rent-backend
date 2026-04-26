@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsInt, Min } from 'class-validator';
+import { IsString, IsNotEmpty } from 'class-validator';
 
 export class CreatePartnershipDto {
   @IsString()
@@ -17,7 +17,6 @@ export class CreatePartnershipDto {
   @IsNotEmpty()
   car_model: string;
 
-  @IsInt()
-  @Min(1900)
-  car_year: number;
+  @IsNotEmpty()
+  car_year: number | string; // Из FormData цифры часто прилетают как строки
 }
