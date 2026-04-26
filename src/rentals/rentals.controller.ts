@@ -79,4 +79,18 @@ export class RentalsController {
   ) {
     return this.rentalsService.finish(id, finishDto);
   }
+
+  @Get('car/:carId')
+  @Roles(UserRole.LESSOR, UserRole.ADMIN, UserRole.MANAGER)
+  findRentalsByCar(
+    @Param('carId', ParseIntPipe) carId: number,
+    @Request() req,
+  ) {
+    const userId = req.user.userId || req.user.id;
+    return this.rentalsService.findRentalsByCarId(
+      carId,
+      userId,
+      req.user.roles,
+    );
+  }
 }

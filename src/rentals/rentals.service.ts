@@ -358,4 +358,26 @@ export class RentalsService {
 
     return await this.rentalRepository.save(rental);
   }
+
+  async findRentalsByCarId(carId: number, userId: string, roles: UserRole[]) {
+    // Получаем машину, чтобы проверить, чья она
+    const car = await this.carsService.findOne(carId);
+
+    const isAdminOrManager =
+      roles.includes(UserRole.ADMIN) || roles.includes(UserRole.MANAGER);
+
+    // Если это не админ, и машина не принадлежит этому юзеру — шлем лесом
+    if (!isAdminOrManager && car.owner?.id !== userId) {
+      throw new ForbiddenException(
+        'У вас нет доступа к статистике этого автомобиля',
+      );
+    }
+
+    // Если проверки пройдены, отдаем историю аренд
+    return this.rentalRepository.find({
+      where: { car: { id: carId } },
+      relations: ['user', 'car'], // Подтягиваем юзера, чтобы партнер видел имя арендатора
+      order: { created_at: 'DESC' },
+    });
+  }
 }
