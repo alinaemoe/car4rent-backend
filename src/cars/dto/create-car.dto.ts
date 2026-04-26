@@ -42,6 +42,14 @@ export class CreateCarDto {
   description?: Record<string, string>;
 
   @IsString()
+  @IsNotEmpty()
+  body_type: string;
+
+  @IsString()
+  @IsNotEmpty()
+  drive_type: string;
+
+  @IsString()
   transmission: string;
 
   @IsString()
@@ -99,4 +107,9 @@ export class CreateCarDto {
   @IsInt()
   @IsOptional()
   min_experience?: number;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  existing_images?: string[];
 }

@@ -21,6 +21,8 @@ export class CarsService {
     private readonly imagesRepository: Repository<CarImage>,
     @InjectRepository(User) private readonly usersRepository: Repository<User>, // 👈 Для обновления ролей
     private cloudinaryService: CloudinaryService,
+    @InjectRepository(CarImage)
+    private carImagesRepository: Repository<CarImage>, // 👈 ВАЖНО ДЛЯ КАРТИНОК
   ) {}
 
   // 👇 ВСПОМОГАТЕЛЬНЫЙ МЕТОД: Проверка прав на машину
@@ -40,22 +42,47 @@ export class CarsService {
     return car;
   }
 
-  // 1. СОЗДАНИЕ (И авто-выдача роли LESSOR)
+  // 1. СОЗДАНИЕ (С обработкой фоток и выдачей роли)
   async create(createCarDto: CreateCarDto, reqUser: any) {
+    // Вытаскиваем фотки и владельца из DTO
+    const { existing_images, owner, ...carData } = createCarDto;
+
+    // Определяем ID владельца.
+    // Берем из DTO (если админ указал его в форме).
+    const finalOwnerId = owner?.id || null;
+
+    // Создаем машину
     const car = this.carsRepository.create({
-      ...createCarDto,
-      owner: { id: reqUser.userId }, // Привязываем создателя как владельца
+      ...carData,
+      owner: finalOwnerId ? { id: finalOwnerId } : null,
     });
 
     const savedCar = await this.carsRepository.save(car);
 
-    // Проверяем, есть ли у юзера роль LESSOR. Если нет — добавляем.
-    const user = await this.usersRepository.findOne({
-      where: { id: reqUser.userId },
-    });
-    if (user && !user.roles.includes(UserRole.LESSOR)) {
-      user.roles.push(UserRole.LESSOR);
-      await this.usersRepository.save(user);
+    // 👇 ОБРАБОТКА КАРТИНОК ИЗ ЗАЯВКИ
+    if (existing_images && existing_images.length > 0) {
+      const imagesToSave = existing_images.map((url, index) => {
+        return this.carImagesRepository.create({
+          url: url,
+          car: savedCar,
+          is_main: index === 0, // Делаем первую фотку главной
+        });
+      });
+
+      await this.carImagesRepository.save(imagesToSave);
+    }
+
+    // 👇 ВЫДАЧА РОЛИ LESSOR
+    // Если у машины есть владелец (и это не null), проверяем его роль
+    if (finalOwnerId) {
+      const user = await this.usersRepository.findOne({
+        where: { id: finalOwnerId },
+      });
+
+      if (user && !user.roles.includes(UserRole.LESSOR)) {
+        user.roles.push(UserRole.LESSOR);
+        await this.usersRepository.save(user);
+      }
     }
 
     return savedCar;
