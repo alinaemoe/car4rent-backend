@@ -65,7 +65,7 @@ export class RentalsController {
     return this.rentalsService.updateStatus(id, status);
   }
 
-  @Post(':id/cancel')
+  @Patch(':id/cancel')
   cancel(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const userId = req.user.userId || req.user.id;
     return this.rentalsService.cancel(id, userId, req.user.roles);

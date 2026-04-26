@@ -28,7 +28,7 @@ import { EmailModule } from './email/email.module';
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost', // IMPORTANT: we are running Node locally, so for us the database is on localhost.
+      host: '127.0.0.1',
       port: 5434,
       username: 'root', // As in docker-compose
       password: 'root', // As in docker-compose

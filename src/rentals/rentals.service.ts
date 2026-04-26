@@ -123,40 +123,24 @@ export class RentalsService {
   }
 
   async findMyRentals(userId: string) {
-    return this.rentalRepository.find({
+    const rentals = await this.rentalRepository.find({
       where: { user: { id: userId } },
-      relations: ['user', 'car', 'car.images'],
-
-      //!! can be selected
-      // select: {
-      //   id: true,
-      //   status: true,
-      //   start_date: true,
-      //   end_date: true,
-      //   base_price: true,
-      //   created_at: true,
-
-      //   user: {
-      //     id: true,
-      //     first_name: true,
-      //     last_name: true,
-      //     email: true,
-      //   },
-
-      //   car: {
-      //     id: true,
-      //     brand: true,
-      //     model: true,
-      //     year: true,
-      //     price_per_day: true,
-      //     images: {
-      //       url: true,
-      //       is_main: true,
-      //     },
-      //     // vin, description, color
-      //   },
-      // },
+      relations: ['car', 'car.images', 'reviews'], // 👈 Подтягиваем связи
       order: { created_at: 'DESC' },
+    });
+
+    // 👇 Трансформируем ответ для удобства фронтенда
+    return rentals.map((rental) => {
+      // Если есть хоть один отзыв — ставим true
+      const has_review = rental.reviews && rental.reviews.length > 0;
+
+      // Выкидываем сам массив отзывов, чтобы не раздувать JSON ответа
+      const { reviews, ...rentalData } = rental;
+
+      return {
+        ...rentalData,
+        has_review,
+      };
     });
   }
 
