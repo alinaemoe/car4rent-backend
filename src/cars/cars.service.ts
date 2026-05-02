@@ -12,6 +12,7 @@ import { GetCatalogDto } from './dto/get-catalog-dto';
 import { Car, CarStatus } from '../entities/car.entity';
 import { CarImage } from 'src/entities/car-image.entity';
 import { User, UserRole } from '../entities/user.entity';
+import { RentalStatus } from 'src/entities/rental.entity';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 @Injectable()
@@ -223,22 +224,37 @@ export class CarsService {
     }
 
     // 5. ДАТЫ АРЕНДЫ (Исключаем занятые машины)
-    if (query.start_date && query.end_date) {
+    const startDate = query.start_date || (query as any).startDate;
+    const endDate = query.end_date || (query as any).endDate || startDate;
+
+    if (startDate && endDate) {
       qb.andWhere((subQb) => {
         const subQuery = subQb
           .subQuery()
-          .select('rental.car_id')
+          .select('1')
           .from('rentals', 'rental')
-          .where("rental.status NOT IN ('CANCELLED', 'COMPLETED')")
+          .where('rental.car_id = car.id')
+          .andWhere('rental.status NOT IN (:...excludedStatuses)')
           .andWhere(
             '(rental.start_date <= :endDate AND rental.end_date >= :startDate)',
           )
           .getQuery();
-        return `car.id NOT IN ${subQuery}`;
+        return `NOT EXISTS ${subQuery}`;
       });
-      qb.setParameter('startDate', query.start_date);
-      qb.setParameter('endDate', query.end_date);
+
+      qb.setParameter('startDate', startDate);
+      qb.setParameter('endDate', endDate);
+
+      // 🔥 Исправили: CANCELED с одной 'L', как в твоем Enum
+      qb.setParameter('excludedStatuses', [
+        RentalStatus.CANCELED,
+        RentalStatus.COMPLETED,
+      ]);
     }
+
+    // Выводим финальный SQL-запрос, чтобы убедиться, что он правильный
+    console.log('5. Generated SQL:', qb.getSql());
+    console.log('=============================\n');
 
     // 6. МИНИМАЛЬНЫЙ РЕЙТИНГ (Фильтрация работает на уровне SQL)
     if (query.min_rating) {
