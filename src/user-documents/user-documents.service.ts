@@ -31,44 +31,51 @@ export class UserDocumentsService {
     });
   }
 
-  // 👇 ОБНОВЛЕННЫЙ МЕТОД ЗАГРУЗКИ
+  // 👇 ОБНОВЛЕННЫЙ МЕТОД ЗАГРУЗКИ С ПОДДЕРЖКОЙ ОБНОВЛЕНИЯ
   async upload(
     userId: string,
     type: DocType,
     imageUrl: string,
     documentNumber?: string,
   ) {
-    // Checking for duplicates
+    // Ищем существующий документ этого типа
     const existing = await this.docRepo.findOne({
       where: { user: { id: userId }, type: type },
     });
 
-    if (existing && existing.status !== DocStatus.REJECTED) {
+    // Если документ уже висит на проверке (PENDING), можно запретить спамить новыми
+    // Но если он VERIFIED или REJECTED - разрешаем перезаписать
+    if (existing && existing.status === DocStatus.PENDING) {
       throw new BadRequestException(
-        'Этот документ уже загружен или находится на проверке.',
+        'Этот документ уже находится на проверке у модератора.',
       );
     }
 
     // OCR IMITATION (Scanning)
     let finalDocNumber = documentNumber;
     if (!finalDocNumber) {
-      // Generate a random string if the user has not entered the number manually.
       finalDocNumber = Math.random()
         .toString(36)
         .substring(2, 12)
         .toUpperCase();
     }
 
-    // Обновляем старый отклоненный или создаем новый
+    // Если документа не было — создаем новый. Если был — перезаписываем.
     const doc =
       existing || this.docRepo.create({ user: { id: userId }, type: type });
 
-    doc.image_url = imageUrl; // 👈 Сюда прилетит чистая ссылка из Cloudinary
+    doc.image_url = imageUrl;
     doc.document_number = finalDocNumber;
-    doc.status = DocStatus.PENDING;
-    doc.rejection_reason = null;
+    doc.status = DocStatus.PENDING; // 🔥 Отправляем на модерацию
+    doc.rejection_reason = null; // Очищаем причину отказа, если она была
 
-    return await this.docRepo.save(doc);
+    await this.docRepo.save(doc);
+
+    // 🔥 ГЛАВНОЕ: Если юзер обновил документ, он теряет статус "Верифицирован"
+    // Ему придется ждать, пока админ не проверит новую фотографию
+    await this.userRepo.update(userId, { is_documents_verified: false });
+
+    return doc;
   }
 
   // ADMIN: APPROVE
