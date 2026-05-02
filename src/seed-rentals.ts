@@ -16,6 +16,8 @@ import {
   PartnershipRequest,
   RequestStatus,
 } from './entities/partnership-request.entity';
+// 👇 ДОБАВЛЯЕМ ИМПОРТ ОТЗЫВОВ
+import { Review } from './entities/review.entity';
 
 // Хелперы для дат и рандома
 const randomInt = (min: number, max: number) =>
@@ -41,17 +43,17 @@ async function bootstrap() {
   const requestRepo = app.get<Repository<PartnershipRequest>>(
     getRepositoryToken(PartnershipRequest),
   );
+  // 👇 ДОБАВЛЯЕМ РЕПОЗИТОРИЙ ОТЗЫВОВ
+  const reviewRepo = app.get<Repository<Review>>(getRepositoryToken(Review));
+
   console.log('🧹 Очищаем старые данные...');
 
-  // Порядок важен из-за Foreign Keys: сначала транзакции и аренды, потом заявки
+  // Порядок важен из-за Foreign Keys
   await txRepo.query('TRUNCATE TABLE "transactions" CASCADE');
   await rentalRepo.query('TRUNCATE TABLE "rentals" CASCADE');
   await requestRepo.query('TRUNCATE TABLE "partnership_requests" CASCADE');
-
-  // Или, если хочешь через TypeORM напрямую (но query с TRUNCATE надежнее при связях):
-  // await txRepo.clear();
-  // await rentalRepo.clear();
-  // await requestRepo.clear();
+  // 👇 ЧИСТИМ ТАБЛИЦУ ОТЗЫВОВ
+  await reviewRepo.query('TRUNCATE TABLE "reviews" CASCADE');
 
   console.log('📡 Вытягиваем существующих юзеров и машины...');
   const users = await userRepo.find();
@@ -70,12 +72,9 @@ async function bootstrap() {
   const usersToUpdate = new Set<User>();
 
   for (const car of cars) {
-    // 30% машин будут принадлежать партнерам, остальные 70% — автопарк компании
     if (Math.random() < 0.3) {
       const owner = randomElement(users);
       car.owner = owner;
-
-      // Выдаем роль LESSOR, если ее еще нет
       if (!owner.roles.includes(UserRole.LESSOR)) {
         owner.roles.push(UserRole.LESSOR);
         usersToUpdate.add(owner);
@@ -129,14 +128,10 @@ async function bootstrap() {
     if (statusRand > 0.4 && statusRand <= 0.7) status = RequestStatus.REJECTED;
     if (statusRand > 0.7) status = RequestStatus.APPROVED;
 
-    const user = randomElement(users);
-
     requestsToInsert.push({
-      user: user,
-      // 👇 ДОБАВЛЯЕМ ЭТИ ПОЛЯ
+      user: randomElement(users),
       owner_name: randomElement(fakeNames),
       owner_phone: `+7999${randomInt(1000000, 9999999)}`,
-      // -----------------------
       car_brand: randomElement(fakeBrands),
       car_model: randomElement(fakeModels),
       car_year: randomInt(2015, 2024),
@@ -158,7 +153,6 @@ async function bootstrap() {
     const user = randomElement(users);
     const car = randomElement(cars);
 
-    // Вероятности: 60% COMPLETED, 15% ACTIVE, 15% APPROVED, 5% CREATED, 5% OVERDUE
     const rand = Math.random();
     let status: RentalStatus;
     let startDate: Date;
@@ -218,10 +212,9 @@ async function bootstrap() {
       actualReturnDate &&
       actualReturnDate > endDate
     ) {
-      penalty = randomInt(1000, 5000); // Штраф за просрочку или перепробег
+      penalty = randomInt(1000, 5000);
     }
 
-    // В активных и завершенных цена фиксируется
     const totalPrice =
       status === RentalStatus.COMPLETED || status === RentalStatus.ACTIVE
         ? finalBasePrice + penalty
@@ -229,7 +222,7 @@ async function bootstrap() {
 
     rentalsToInsert.push({
       user,
-      car, // ВАЖНО: тут car уже содержит owner (партнера), если он есть!
+      car,
       status,
       start_date: startDate,
       end_date: endDate,
@@ -248,8 +241,6 @@ async function bootstrap() {
     });
   }
 
-  // Сохраняем аренды в БД (чанками)
-  console.log('💾 Сохраняем аренды...');
   const chunkSize = 100;
   const savedRentals: Rental[] = [];
   for (let i = 0; i < rentalsToInsert.length; i += chunkSize) {
@@ -267,28 +258,23 @@ async function bootstrap() {
   const transactionsToInsert: Partial<Transaction>[] = [];
 
   for (const rental of savedRentals) {
-    // Транзакции создаем ТОЛЬКО для завершенных или активных (оплаченных) аренд
-    // И ТОЛЬКО если у машины есть владелец-партнер!
     if (![RentalStatus.COMPLETED, RentalStatus.ACTIVE].includes(rental.status))
       continue;
     if (!rental.car.owner) continue;
 
     const amount = rental.total_price || rental.base_price;
-    // Доля партнера (80%) и комиссия сервиса (20%)
     const lessorIncome = Math.floor(amount * 0.8);
     const serviceFee = amount - lessorIncome;
-
-    // Имитируем выплаты: если аренда была больше 15 дней назад — статус PAID
     const daysSinceStart =
       (now.getTime() - rental.start_date.getTime()) / (1000 * 60 * 60 * 24);
     const payoutStatus =
       daysSinceStart > 15 ? PayoutStatus.PAID : PayoutStatus.PENDING;
 
     transactionsToInsert.push({
-      type: TransactionType.RENTAL_PAYMENT, // 👈 Было 'RENTAL_PAYMENT', стал ENUM
-      total_amount: amount, // 👈 Проверь: в энтити поле total_amount, а в сидере было amount
+      type: TransactionType.RENTAL_PAYMENT,
+      total_amount: amount,
       lessor_income: lessorIncome,
-      system_fee: serviceFee, // 👈 Проверь: в энтити system_fee, а в сидере было service_fee
+      system_fee: serviceFee,
       payout_status: payoutStatus,
       car: rental.car,
       rental: rental,
@@ -297,14 +283,85 @@ async function bootstrap() {
     });
   }
 
-  // Сохраняем транзакции чанками
   for (let i = 0; i < transactionsToInsert.length; i += chunkSize) {
     const chunk = transactionsToInsert.slice(i, i + chunkSize);
     await txRepo.save(chunk);
   }
-
   console.log(
     `✅ Создано ${transactionsToInsert.length} финансовых транзакций.`,
+  );
+
+  // ==========================================
+  // 🔥 ЭТАП 5: МЕГА-ГЕНЕРАЦИЯ ОТЗЫВОВ 🔥
+  // ==========================================
+  console.log('⭐️ Насыпаем 3000 отзывов для красоты карточек...');
+
+  const reviewsToInsert: Partial<Review>[] = [];
+
+  const goodComments = [
+    'Отличная машина, все понравилось!',
+    'Чистый салон, едет бодро. Рекомендую.',
+    'Взял на выходные, никаких проблем.',
+    'Топовая тачка, владелец супер адекватный.',
+    'Машина огонь! Вернусь еще.',
+    'Все прошло гладко. Рекомендую этого арендодателя.',
+    'Состояние идеальное, пахнет новьем.',
+    'Очень комфортный автомобиль для дальних поездок.',
+  ];
+  const neutralComments = [
+    'Нормально, но можно было бы помыть перед сдачей.',
+    'Едет ок, но расход великоват.',
+    'Обычная машина за свои деньги.',
+    'В целом пойдет, но кондиционер слабоват.',
+  ];
+  const badComments = [
+    'Гремит подвеска, не советую.',
+    'Салон прокурен, хотя было заявлено обратное.',
+    'Машина глохла на светофорах.',
+    'Не очень приятный опыт, машина уставшая.',
+  ];
+
+  for (let i = 0; i < 3000; i++) {
+    const car = randomElement(cars);
+    const user = randomElement(users);
+
+    // Генерируем реалистичный рейтинг (в основном хорошие отзывы)
+    const ratingChance = Math.random();
+    let rating: number;
+    let comment: string;
+
+    if (ratingChance < 0.75) {
+      // 75% отличных отзывов
+      rating = randomInt(4, 5);
+      comment = randomElement(goodComments);
+    } else if (ratingChance < 0.9) {
+      // 15% средних
+      rating = 3;
+      comment = randomElement(neutralComments);
+    } else {
+      // 10% негатива для реалистичности
+      rating = randomInt(1, 2);
+      comment = randomElement(badComments);
+    }
+
+    reviewsToInsert.push({
+      user,
+      car,
+      rating,
+      comment,
+      // Дата отзыва за последний год
+      created_at: addDays(now, -randomInt(1, 365)),
+    });
+  }
+
+  // Сохраняем чанками
+  for (let i = 0; i < reviewsToInsert.length; i += chunkSize) {
+    const chunk = reviewsToInsert.slice(i, i + chunkSize);
+    await reviewRepo.save(chunk);
+    process.stdout.write('*'); // Звездочки вместо точек для отзывов
+  }
+  console.log(
+    `\n✅ Успешно добавлено ${reviewsToInsert.length} отзывов! Карточки авто теперь оживут.`,
   );
 
   console.log(

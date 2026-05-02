@@ -84,12 +84,37 @@ export class ReviewsService {
     return savedReview;
   }
 
-  async findCarReviews(carId: number) {
-    return this.reviewRepo.find({
+  async findCarReviews(carId: number, page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    // Используем findAndCount для пагинации
+    const [reviews, total] = await this.reviewRepo.findAndCount({
       where: { car: { id: carId } },
       relations: ['user'],
       order: { created_at: 'DESC' },
+      skip,
+      take: limit,
     });
+
+    // Мапим под интерфейс, который мы уже используем на фронте (CarReviewPreview)
+    const mappedData = reviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.created_at,
+      userFirstName: r.user?.first_name,
+      userLastName: r.user?.last_name,
+    }));
+
+    return {
+      data: mappedData,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findCompanyReviews() {

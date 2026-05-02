@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   UseGuards,
   Request,
+  Query,
 } from '@nestjs/common';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
@@ -26,8 +27,16 @@ export class ReviewsController {
 
   @Public()
   @Get('car/:id')
-  getCarReviews(@Param('id', ParseIntPipe) carId: number) {
-    return this.reviewsService.findCarReviews(carId);
+  getCarReviews(
+    @Param('id', ParseIntPipe) carId: number,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '3',
+  ) {
+    return this.reviewsService.findCarReviews(
+      carId,
+      Number(page),
+      Number(limit),
+    );
   }
 
   @Public()
