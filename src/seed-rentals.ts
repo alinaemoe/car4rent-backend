@@ -212,7 +212,7 @@ async function bootstrap() {
       actualReturnDate &&
       actualReturnDate > endDate
     ) {
-      penalty = randomInt(1000, 5000);
+      penalty = randomInt(30, 150);
     }
 
     const totalPrice =
