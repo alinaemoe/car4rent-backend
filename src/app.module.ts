@@ -23,6 +23,8 @@ import { FeaturesModule } from './features/features.module';
 import { LocationsModule } from './locations/locations.module';
 import { EmailModule } from './email/email.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { FaqModule } from './faq/faq.module';
+import { Faq } from './entities/faq.entity';
 
 @Module({
   imports: [
@@ -55,6 +57,7 @@ import { TransactionsModule } from './transactions/transactions.module';
     LocationsModule,
     EmailModule,
     TransactionsModule,
+    FaqModule,
   ],
   controllers: [AppController],
   providers: [
