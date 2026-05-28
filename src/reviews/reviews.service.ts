@@ -101,7 +101,7 @@ export class ReviewsService {
       id: r.id,
       rating: r.rating,
       comment: r.comment,
-      createdAt: r.created_at,
+      created_at: r.created_at,
       userFirstName: r.user?.first_name,
       userLastName: r.user?.last_name,
       userAvatarUrl: r.user?.avatar_url,

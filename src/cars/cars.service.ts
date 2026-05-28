@@ -366,9 +366,10 @@ export class CarsService {
         'r.id AS "id"',
         'r.rating AS "rating"',
         'r.comment AS "comment"',
-        'r.created_at AS "createdAt"',
-        'u.first_name AS "userFirstName"', // Достаем имя автора
+        'r.created_at AS "created_at"',
+        'u.first_name AS "userFirstName"',
         'u.last_name AS "userLastName"',
+        'u.avatar_url AS "userAvatarUrl"',
       ])
       .from('reviews', 'r')
       .leftJoin('r.user', 'u')
