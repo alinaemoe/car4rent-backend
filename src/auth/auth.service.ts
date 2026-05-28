@@ -183,7 +183,22 @@ export class AuthService {
     };
   }
 
-  // 6. ПОВТОРНАЯ ОТПРАВКА КОДА
+  // 6. ЗАВЕРШЕНИЕ СЕАНСОВ (ротация refresh token)
+  async terminateSessions(userId: string) {
+    const user = await this.usersService.findByIdForAuth(userId);
+    const tokens = await this.getTokens(user.id, user.email, user.roles);
+    await this.updateRefreshTokenHash(user.id, tokens.refresh_token);
+    return tokens;
+  }
+
+  // 7. ДЕАКТИВАЦИЯ АККАУНТА (soft delete)
+  async deactivateAccount(userId: string) {
+    await this.usersService.updateRefreshToken(userId, null);
+    await this.usersService.updateStatus(userId, UserStatus.BANNED);
+    return { message: 'Account deactivated' };
+  }
+
+  // 8. ПОВТОРНАЯ ОТПРАВКА КОДА
   async resendOtp(email: string) {
     const user = await this.usersService.findByEmail(email);
 

@@ -62,6 +62,18 @@ export class AuthController {
     return this.authService.logout(req.user.userId);
   }
 
+  @Post('terminate-sessions')
+  @HttpCode(HttpStatus.OK)
+  terminateSessions(@Request() req) {
+    return this.authService.terminateSessions(req.user.userId);
+  }
+
+  @Post('deactivate-account')
+  @HttpCode(HttpStatus.OK)
+  deactivateAccount(@Request() req) {
+    return this.authService.deactivateAccount(req.user.userId);
+  }
+
   @Public()
   @Post('register')
   register(@Body() registerDto: RegisterDto) {

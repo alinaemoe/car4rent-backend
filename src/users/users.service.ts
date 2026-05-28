@@ -132,6 +132,10 @@ export class UsersService {
     });
   }
 
+  async updateStatus(userId: string, status: UserStatus) {
+    await this.usersRepository.update(userId, { status });
+  }
+
   async updateAvatar(userId: string, avatarUrl: string) {
     await this.usersRepository.update(userId, { avatar_url: avatarUrl });
     return this.findOne(userId);
