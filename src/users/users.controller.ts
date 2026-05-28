@@ -63,18 +63,19 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Roles(UserRole.ADMIN)
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN)
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    // Note: UpdateUserDto needs to be mapped properly in the service if field names differ
-    // (e.g. firstName -> first_name). For now, we assume simple updates.
     return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }
