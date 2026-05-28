@@ -3,6 +3,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Matches,
   MinLength,
 } from 'class-validator';
 
@@ -25,5 +26,8 @@ export class RegisterDto {
 
   @IsString()
   @IsOptional()
+  @Matches(/^\+?[\d\s\-()]{7,15}$/, {
+    message: 'Некорректный номер телефона',
+  })
   phone?: string;
 }
