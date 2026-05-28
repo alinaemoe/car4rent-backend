@@ -132,6 +132,11 @@ export class UsersService {
     });
   }
 
+  async updateAvatar(userId: string, avatarUrl: string) {
+    await this.usersRepository.update(userId, { avatar_url: avatarUrl });
+    return this.findOne(userId);
+  }
+
   async updateOtpDetails(
     userId: string,
     otpHash: string | null,

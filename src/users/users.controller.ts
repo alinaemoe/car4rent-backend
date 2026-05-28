@@ -7,17 +7,25 @@ import {
   Param,
   Delete,
   Request,
+  UploadedFile,
+  BadRequestException,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from 'src/entities/user.entity';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @Public()
   @Post()
@@ -28,6 +36,22 @@ export class UsersController {
   @Get('profile')
   getProfile(@Request() req) {
     return this.usersService.findOne(req.user.userId);
+  }
+
+  @Patch('profile')
+  updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.update(req.user.userId, updateUserDto);
+  }
+
+  @Post('profile/avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadAvatar(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Файл обязателен');
+    const avatarUrl = await this.cloudinaryService.uploadImage(file);
+    return this.usersService.updateAvatar(req.user.userId, avatarUrl);
   }
 
   // 👇 ЗАЩИЩАЕМ СПИСОК ЮЗЕРОВ (Только Админ может видеть всех)

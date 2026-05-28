@@ -104,6 +104,7 @@ export class ReviewsService {
       createdAt: r.created_at,
       userFirstName: r.user?.first_name,
       userLastName: r.user?.last_name,
+      userAvatarUrl: r.user?.avatar_url,
     }));
 
     return {
