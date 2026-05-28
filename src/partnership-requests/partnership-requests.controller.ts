@@ -11,7 +11,6 @@ import {
   Request,
   UseInterceptors,
   UploadedFiles,
-  ForbiddenException,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { PartnershipRequestsService } from './partnership-requests.service';
@@ -20,29 +19,28 @@ import { UpdatePartnershipStatusDto } from './dto/update-partnership-request.dto
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../entities/user.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CloudinaryService } from '../cloudinary/cloudinary.service'; // 👈 Импортируем Cloudinary
+import { Public } from '../auth/decorators/public.decorator';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Controller('partnership-requests')
-@UseGuards(JwtAuthGuard) // 👈 Закрываем роут, заявки только для своих
 export class PartnershipRequestsController {
   constructor(
     private readonly service: PartnershipRequestsService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
+  @Public()
   @Post()
-  @UseInterceptors(FilesInterceptor('photos', 5)) // 👈 Перехватываем массив файлов (до 5 штук)
+  @UseInterceptors(FilesInterceptor('photos', 5))
   async create(
     @Request() req,
     @Body() dto: CreatePartnershipDto,
-    @UploadedFiles() files: Express.Multer.File[], // 👈 Достаем физические файлы
+    @UploadedFiles() files: Express.Multer.File[],
   ) {
-    const userId = req.user.userId || req.user.id;
+    const userId = req.user?.userId || req.user?.id || null;
     let photoUrls: string[] = [];
 
-    // Если юзер прикрепил файлы, грузим их в облако
     if (files && files.length > 0) {
-      // Promise.all позволяет загрузить все 5 фоток параллельно, что супер быстро!
       const uploadPromises = files.map((file) =>
         this.cloudinaryService.uploadImage(file),
       );

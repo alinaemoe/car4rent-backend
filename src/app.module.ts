@@ -24,7 +24,7 @@ import { LocationsModule } from './locations/locations.module';
 import { EmailModule } from './email/email.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { FaqModule } from './faq/faq.module';
-import { Faq } from './entities/faq.entity';
+import { NewsModule } from './news/news.module';
 
 @Module({
   imports: [
@@ -58,6 +58,7 @@ import { Faq } from './entities/faq.entity';
     EmailModule,
     TransactionsModule,
     FaqModule,
+    NewsModule,
   ],
   controllers: [AppController],
   providers: [
