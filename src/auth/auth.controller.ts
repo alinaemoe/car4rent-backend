@@ -13,6 +13,8 @@ import { SignInDto } from './dto/sign-in.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from './decorators/public.decorator';
 import { JwtService } from '@nestjs/jwt';
 import { jwtConstants } from './constants';
@@ -92,5 +94,23 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   resendOtp(@Body('email') email: string) {
     return this.authService.resendOtp(email);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  forgotPassword(@Body() forgotDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotDto.email);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  resetPassword(@Body() resetDto: ResetPasswordDto) {
+    return this.authService.resetPassword(
+      resetDto.email,
+      resetDto.otp,
+      resetDto.newPassword,
+    );
   }
 }

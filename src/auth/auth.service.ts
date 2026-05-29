@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -217,5 +218,69 @@ export class AuthService {
     await this.emailService.sendEmailVerificationOTP(user.email, newOtp);
 
     return { message: 'Новый код подтверждения отправлен на почту' };
+  }
+
+  async forgotPassword(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('Пользователь с таким email не найден');
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const salt = await bcrypt.genSalt();
+    const otpHash = await bcrypt.hash(otp, salt);
+
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+
+    await this.usersService.updateResetOtpDetails(
+      user.id,
+      otpHash,
+      expiresAt,
+      0,
+    );
+    await this.emailService.sendPasswordResetOTP(user.email, otp);
+
+    return { message: 'Код для сброса пароля отправлен на почту' };
+  }
+
+  async resetPassword(email: string, otp: string, newPassword: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('Пользователь с таким email не найден');
+    }
+
+    if (!user.reset_password_otp_hash) {
+      throw new BadRequestException('Код для сброса не был запрошен');
+    }
+
+    if (
+      !user.reset_password_otp_expires_at ||
+      user.reset_password_otp_expires_at < new Date()
+    ) {
+      await this.usersService.clearResetOtpDetails(user.id);
+      throw new BadRequestException('Код истек. Запросите новый код.');
+    }
+
+    if (user.reset_password_attempts >= 5) {
+      await this.usersService.clearResetOtpDetails(user.id);
+      throw new BadRequestException(
+        'Слишком много неверных попыток. Запросите новый код.',
+      );
+    }
+
+    const isOtpValid = await bcrypt.compare(otp, user.reset_password_otp_hash);
+    if (!isOtpValid) {
+      await this.usersService.incrementResetAttempts(user.id);
+      const remaining = 4 - user.reset_password_attempts;
+      throw new BadRequestException(
+        `Неверный код. Осталось попыток: ${Math.max(0, remaining)}`,
+      );
+    }
+
+    await this.usersService.updatePassword(user.id, newPassword);
+    await this.usersService.clearResetOtpDetails(user.id);
+
+    return { message: 'Пароль успешно изменен' };
   }
 }
