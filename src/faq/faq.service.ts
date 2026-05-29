@@ -26,6 +26,13 @@ export class FaqService {
     });
   }
 
+  // АДМИН: Получить один вопрос
+  async findOne(id: number) {
+    const faq = await this.faqRepo.findOne({ where: { id } });
+    if (!faq) throw new NotFoundException('Вопрос не найден');
+    return faq;
+  }
+
   // АДМИН: Создать новый вопрос
   async create(dto: CreateFaqDto) {
     const faq = this.faqRepo.create(dto);

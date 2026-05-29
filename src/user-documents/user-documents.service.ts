@@ -22,13 +22,41 @@ export class UserDocumentsService {
     private userRepo: Repository<User>,
   ) {}
 
-  async findAll(userId?: string) {
-    const whereCondition = userId ? { user: { id: userId } } : {};
+  async findAll(
+    userId?: string,
+    status?: DocStatus,
+    type?: DocType,
+    skip?: number,
+    take?: number,
+    sort?: string,
+    order?: 'ASC' | 'DESC',
+  ) {
+    const whereCondition: any = {};
 
-    return this.docRepo.find({
+    if (userId) whereCondition.user = { id: userId };
+    if (status) whereCondition.status = status;
+    if (type) whereCondition.type = type;
+
+    const findOptions: any = {
       where: whereCondition,
-      order: { created_at: 'DESC' },
-    });
+      relations: ['user'],
+      order: { created_at: 'DESC' as const },
+    };
+
+    if (sort) {
+      if (sort === 'user') {
+        findOptions.order = { user: { first_name: order || 'ASC' } };
+      } else {
+        findOptions.order = { [sort]: order || 'ASC' };
+      }
+    }
+
+    if (skip !== undefined) findOptions.skip = skip;
+    if (take !== undefined) findOptions.take = take;
+
+    const [data, total] = await this.docRepo.findAndCount(findOptions);
+
+    return { data, total };
   }
 
   // 👇 ОБНОВЛЕННЫЙ МЕТОД ЗАГРУЗКИ С ПОДДЕРЖКОЙ ОБНОВЛЕНИЯ

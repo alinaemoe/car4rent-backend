@@ -36,6 +36,14 @@ export class FaqController {
     return this.faqService.findAllForAdmin();
   }
 
+  // 👉 АДМИНСКИЙ ЭНДПОИНТ: Получить один
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.faqService.findOne(id);
+  }
+
   // 👉 АДМИНСКИЙ ЭНДПОИНТ: Создать
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)

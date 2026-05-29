@@ -12,13 +12,15 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserDocumentsService } from './user-documents.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../entities/user.entity';
-import { DocType } from '../entities/user-document.entity';
+import { DocStatus, DocType } from '../entities/user-document.entity';
 import { CloudinaryService } from '../cloudinary/cloudinary.service'; // 👈 Импортируем Cloudinary
 
 @Controller('documents')
@@ -31,8 +33,41 @@ export class UserDocumentsController {
 
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  findAll(@Query('userId') userId?: string) {
-    return this.service.findAll(userId);
+  async findAll(
+    @Query('userId') userId: string | undefined,
+    @Query('status') status: string | undefined,
+    @Query('type') type: string | undefined,
+    @Query('_start') start: string | undefined,
+    @Query('_end') end: string | undefined,
+    @Query('_sort') sort: string | undefined,
+    @Query('_order') order: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const skip = start ? parseInt(start, 10) : undefined;
+    const take = end && start ? parseInt(end, 10) - parseInt(start, 10) : undefined;
+    const sortOrder = order === 'desc' ? 'DESC' as const : 'ASC' as const;
+
+    const validStatus = Object.values(DocStatus).includes(status as DocStatus)
+      ? (status as DocStatus)
+      : undefined;
+    const validType = Object.values(DocType).includes(type as DocType)
+      ? (type as DocType)
+      : undefined;
+
+    const result = await this.service.findAll(
+      userId,
+      validStatus,
+      validType,
+      skip,
+      take,
+      sort,
+      sortOrder,
+    );
+
+    res.setHeader('X-Total-Count', result.total.toString());
+    res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
+
+    return result.data;
   }
 
   // 👇 ОБНОВЛЕННЫЙ РОУТ ЗАГРУЗКИ (Ждет FormData с файлом)
