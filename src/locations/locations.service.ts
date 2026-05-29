@@ -21,6 +21,24 @@ export class LocationsService {
     return await this.locationRepo.find();
   }
 
+  async findAllForAdmin(params: {
+    _start?: number;
+    _end?: number;
+    _sort?: string;
+    _order?: 'ASC' | 'DESC';
+  }) {
+    const { _start = 0, _end = 10, _sort = 'id', _order = 'ASC' } = params;
+    const take = _end - _start;
+    const allowedSortFields = ['name', 'address', 'latitude', 'longitude', 'id'];
+    const sortField = allowedSortFields.includes(_sort) ? _sort : 'id';
+    const [data, total] = await this.locationRepo.findAndCount({
+      skip: _start,
+      take,
+      order: { [sortField]: _order },
+    });
+    return { data, total };
+  }
+
   async findOne(id: number) {
     const loc = await this.locationRepo.findOne({ where: { id } });
     if (!loc) throw new NotFoundException(`Location #${id} not found`);

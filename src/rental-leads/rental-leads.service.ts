@@ -24,9 +24,28 @@ export class RentalLeadsService {
 
   async findAll() {
     return this.repo.find({
-      relations: ['car'], // Let's load up the machine so the admin can see what they were interested in.
+      relations: ['car'],
       order: { created_at: 'DESC' },
     });
+  }
+
+  async findAllForAdmin(params: {
+    _start?: number;
+    _end?: number;
+    _sort?: string;
+    _order?: 'ASC' | 'DESC';
+  }) {
+    const { _start = 0, _end = 10, _sort = 'created_at', _order = 'DESC' } = params;
+    const take = _end - _start;
+    const allowedSortFields = ['id', 'name', 'status', 'created_at'];
+    const sortField = allowedSortFields.includes(_sort) ? _sort : 'created_at';
+    const [data, total] = await this.repo.findAndCount({
+      relations: ['car'],
+      skip: _start,
+      take,
+      order: { [sortField]: _order },
+    });
+    return { data, total };
   }
 
   async updateStatus(id: number, status: LeadStatus) {

@@ -64,6 +64,7 @@ export class NewsController {
     });
     if (res) {
       res.header('X-Total-Count', String(result.total));
+      res.header('Access-Control-Expose-Headers', 'X-Total-Count');
     }
     return result.data;
   }
