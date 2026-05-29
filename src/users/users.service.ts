@@ -151,4 +151,41 @@ export class UsersService {
       otp_expires_at: expiresAt,
     });
   }
+
+  async updateResetOtpDetails(
+    userId: string,
+    otpHash: string | null,
+    expiresAt: Date | null,
+    attempts: number,
+  ) {
+    await this.usersRepository.update(userId, {
+      reset_password_otp_hash: otpHash,
+      reset_password_otp_expires_at: expiresAt,
+      reset_password_attempts: attempts,
+    });
+  }
+
+  async clearResetOtpDetails(userId: string) {
+    await this.usersRepository.update(userId, {
+      reset_password_otp_hash: null,
+      reset_password_otp_expires_at: null,
+      reset_password_attempts: 0,
+    });
+  }
+
+  async incrementResetAttempts(userId: string) {
+    await this.usersRepository.increment(
+      { id: userId },
+      'reset_password_attempts',
+      1,
+    );
+  }
+
+  async updatePassword(userId: string, newPassword: string) {
+    const salt = await bcrypt.genSalt();
+    const hash = await bcrypt.hash(newPassword, salt);
+    await this.usersRepository.update(userId, {
+      password_hash: hash,
+    });
+  }
 }

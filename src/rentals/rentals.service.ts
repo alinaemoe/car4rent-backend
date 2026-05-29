@@ -5,8 +5,15 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual, MoreThanOrEqual, In } from 'typeorm';
+import {
+  Repository,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  In,
+  FindOptionsOrder,
+} from 'typeorm';
 import { CreateRentalDto } from './dto/create-rental.dto';
+import { UpdateRentalDto } from './dto/update-rental.dto';
 import { FinishRentalDto } from './dto/finish-rental.dto';
 import { StartRentalDto } from './dto/start-rental.dto';
 import { Rental, RentalStatus } from '../entities/rental.entity';
@@ -151,17 +158,75 @@ export class RentalsService {
     });
   }
 
-  async findAll(userId?: string, status?: RentalStatus) {
+  async findAll(
+    userId?: string,
+    status?: RentalStatus,
+    skip?: number,
+    take?: number,
+    sort?: string,
+    order?: 'ASC' | 'DESC',
+  ) {
     const whereCondition: any = {};
 
     if (userId) whereCondition.user = { id: userId };
     if (status) whereCondition.status = status;
 
-    return this.rentalRepository.find({
+    const findOptions: any = {
       where: whereCondition,
       relations: ['user', 'car', 'car.images'],
-      order: { created_at: 'DESC' },
+      order: { created_at: 'DESC' as const },
+    };
+
+    if (sort) {
+      const sortField = sort === 'car.brand' ? 'car' : sort;
+      if (sortField === 'car') {
+        findOptions.order = { car: { brand: order || 'ASC' } };
+      } else if (sortField === 'user') {
+        findOptions.order = { user: { first_name: order || 'ASC' } };
+      } else {
+        findOptions.order = { [sortField]: order || 'ASC' };
+      }
+    }
+
+    if (skip !== undefined) findOptions.skip = skip;
+    if (take !== undefined) findOptions.take = take;
+
+    const [rentals, total] = await this.rentalRepository.findAndCount(
+      findOptions,
+    );
+
+    return { data: rentals, total };
+  }
+
+  async findOne(id: number) {
+    const rental = await this.rentalRepository.findOne({
+      where: { id },
+      relations: [
+        'user',
+        'car',
+        'car.images',
+        'damages',
+        'pick_up_location',
+        'drop_off_location',
+        'reviews',
+      ],
     });
+    if (!rental) throw new NotFoundException('Rental not found');
+    return rental;
+  }
+
+  async update(id: number, updateRentalDto: UpdateRentalDto) {
+    const rental = await this.rentalRepository.findOne({ where: { id } });
+    if (!rental) throw new NotFoundException('Rental not found');
+
+    if (updateRentalDto.start_date) {
+      rental.start_date = new Date(updateRentalDto.start_date);
+    }
+    if (updateRentalDto.end_date) {
+      rental.end_date = new Date(updateRentalDto.end_date);
+    }
+
+    return await this.rentalRepository.save(rental);
   }
 
   async updateStatus(id: number, status: RentalStatus) {

@@ -9,12 +9,15 @@ import {
   ParseIntPipe,
   Query,
   Res,
+  DefaultValuePipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import type { Response } from 'express';
 
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RentalsService } from './rentals.service';
 import { CreateRentalDto } from './dto/create-rental.dto';
+import { UpdateRentalDto } from './dto/update-rental.dto';
 import { FinishRentalDto } from './dto/finish-rental.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../entities/user.entity';
@@ -38,21 +41,52 @@ export class RentalsController {
     return this.rentalsService.findMyRentals(req.user.userId);
   }
 
-  // 3. Админ: Все поездки
+  // 3. Админ: Все поездки (с пагинацией для DataGrid)
   @Get()
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   async findAll(
     @Query('userId') userId: string | undefined,
-    @Query('status') status: RentalStatus | undefined, // 👈 Добавляем
+    @Query('status') status: RentalStatus | undefined,
+    @Query('_start') start: string | undefined,
+    @Query('_end') end: string | undefined,
+    @Query('_sort') sort: string | undefined,
+    @Query('_order') order: string | undefined,
     @Res({ passthrough: true }) res: Response,
   ) {
-    // Передаем статус в сервис
-    const rentals = await this.rentalsService.findAll(userId, status);
+    const skip = start ? parseInt(start, 10) : undefined;
+    const take = end && start ? parseInt(end, 10) - parseInt(start, 10) : undefined;
+    const sortOrder = order === 'desc' ? 'DESC' as const : 'ASC' as const;
 
-    res.setHeader('X-Total-Count', rentals.length.toString());
+    const result = await this.rentalsService.findAll(
+      userId,
+      status,
+      skip,
+      take,
+      sort,
+      sortOrder,
+    );
+
+    res.setHeader('X-Total-Count', result.total.toString());
     res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
 
-    return rentals;
+    return result.data;
+  }
+
+  // 3b. Админ: Одна аренда (для Show)
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.rentalsService.findOne(id);
+  }
+
+  // 3c. Админ: Обновление аренды (даты и т.д.)
+  @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateRentalDto: UpdateRentalDto,
+  ) {
+    return this.rentalsService.update(id, updateRentalDto);
   }
 
   // 4. Админ: Одобрить/Отклонить/Завершить
