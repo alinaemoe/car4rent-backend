@@ -21,6 +21,24 @@ export class FeaturesService {
     return await this.featureRepo.find();
   }
 
+  async findAllForAdmin(params: {
+    _start?: number;
+    _end?: number;
+    _sort?: string;
+    _order?: 'ASC' | 'DESC';
+  }) {
+    const { _start = 0, _end = 10, _sort = 'id', _order = 'ASC' } = params;
+    const take = _end - _start;
+    const allowedSortFields = ['internal_name', 'id'];
+    const sortField = allowedSortFields.includes(_sort) ? _sort : 'id';
+    const [data, total] = await this.featureRepo.findAndCount({
+      skip: _start,
+      take,
+      order: { [sortField]: _order },
+    });
+    return { data, total };
+  }
+
   async findOne(id: number) {
     const feature = await this.featureRepo.findOne({ where: { id } });
     if (!feature) throw new NotFoundException(`Feature #${id} not found`);
