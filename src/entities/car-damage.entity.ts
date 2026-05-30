@@ -12,6 +12,8 @@ import { Car } from './car.entity';
 export enum DamageType {
   SCRATCH = 'SCRATCH',
   DENT = 'DENT',
+  CRACK = 'CRACK',
+  BROKEN_PART = 'BROKEN_PART',
   SALON = 'SALON',
   WHEEL = 'WHEEL',
   OTHER = 'OTHER',
@@ -44,6 +46,15 @@ export class CarDamage {
 
   @Column({ default: false })
   is_paid: boolean;
+
+  @Column('decimal', { precision: 8, scale: 4, nullable: true })
+  coord_x: number | null;
+
+  @Column('decimal', { precision: 8, scale: 4, nullable: true })
+  coord_y: number | null;
+
+  @Column('decimal', { precision: 8, scale: 4, nullable: true })
+  coord_z: number | null;
 
   @CreateDateColumn()
   created_at: Date;

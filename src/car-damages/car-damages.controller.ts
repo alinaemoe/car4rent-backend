@@ -5,6 +5,7 @@ import {
   Patch,
   Param,
   ParseIntPipe,
+  Query,
   UseInterceptors,
   UploadedFile,
   UseGuards,
@@ -35,8 +36,22 @@ export class CarDamagesController {
   }
 
   @Get()
-  findAll() {
-    return this.service.findAll();
+  findAll(
+    @Query('carId') carId?: string,
+    @Query('isPaid') isPaid?: string,
+    @Query('_start') _start?: string,
+    @Query('_end') _end?: string,
+    @Query('_sort') _sort?: string,
+    @Query('_order') _order?: string,
+  ) {
+    return this.service.findAll({
+      carId: carId ? parseInt(carId, 10) : undefined,
+      isPaid: isPaid !== undefined ? isPaid === 'true' : undefined,
+      _start: _start ? parseInt(_start, 10) : undefined,
+      _end: _end ? parseInt(_end, 10) : undefined,
+      _sort,
+      _order,
+    });
   }
 
   @Get('car/:id')

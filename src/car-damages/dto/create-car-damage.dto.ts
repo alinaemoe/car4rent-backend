@@ -9,7 +9,7 @@ import { DamageType } from '../../entities/car-damage.entity';
 
 export class CreateCarDamageDto {
   @IsNotEmpty()
-  carId: number; // ID машины
+  carId: number;
 
   @IsEnum(DamageType)
   type: DamageType;
@@ -24,7 +24,18 @@ export class CreateCarDamageDto {
   @IsOptional()
   image_url?: string;
 
-  // rentalId опционален, т.к. админ может заметить царапину вне арендыы
   @IsOptional()
   rentalId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  coord_x?: number;
+
+  @IsNumber()
+  @IsOptional()
+  coord_y?: number;
+
+  @IsNumber()
+  @IsOptional()
+  coord_z?: number;
 }
