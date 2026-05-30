@@ -70,15 +70,6 @@ export class TransactionsController {
     return this.transactionsService.getStats();
   }
 
-  @Patch(':id/payout-status')
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
-  updatePayoutStatus(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateTransactionStatusDto,
-  ) {
-    return this.transactionsService.updatePayoutStatus(id, dto.payout_status);
-  }
-
   @Get('lessor/stats')
   @Roles(UserRole.LESSOR)
   getLessorStats(
@@ -99,5 +90,20 @@ export class TransactionsController {
   ) {
     const userId = req.user.userId || req.user.id;
     return this.transactionsService.getLessorHistory(userId, month, year);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  async findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.transactionsService.findOne(id);
+  }
+
+  @Patch(':id/payout-status')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  updatePayoutStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateTransactionStatusDto,
+  ) {
+    return this.transactionsService.updatePayoutStatus(id, dto.payout_status);
   }
 }

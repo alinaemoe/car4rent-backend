@@ -25,6 +25,8 @@ import {
   Transaction,
   TransactionType,
   PayoutStatus,
+  DepositStatus,
+  PaymentStatus,
 } from '../entities/transaction.entity';
 
 @Injectable()
@@ -388,28 +390,45 @@ export class RentalsService {
 
     // 💥 TRANSACTIONS LOGIC START 💥
     const carOwner = rental.car.owner;
-    const COMMISSION_RATE = 0.2; // 20% комиссия нашего сервиса
+    const COMMISSION_RATE = 0.2;
 
-    let systemFee = Number(rental.total_price);
-    let lessorIncome = 0;
+    const baseRentalAmount = Number(rental.base_price);
+    const penaltyAmount = penalty;
+    const totalAmount = baseRentalAmount + penaltyAmount;
+
+    let systemFee: number;
+    let lessorIncome: number;
     let payoutStatus = PayoutStatus.NOT_APPLICABLE;
 
-    // Если у машины есть владелец (это партнер), то пилим деньги
     if (carOwner) {
-      systemFee = Number(rental.total_price) * COMMISSION_RATE;
-      lessorIncome = Number(rental.total_price) - systemFee;
-      payoutStatus = PayoutStatus.PENDING; // Ставим "В ожидании выплаты"
+      systemFee = +(baseRentalAmount * COMMISSION_RATE).toFixed(2);
+      lessorIncome = +(baseRentalAmount - systemFee).toFixed(2);
+      payoutStatus = PayoutStatus.PENDING;
+    } else {
+      systemFee = totalAmount;
+      lessorIncome = 0;
     }
 
+    // Penalties go 100% to platform (lessor doesn't bear penalty costs)
+    systemFee = +(systemFee + penaltyAmount).toFixed(2);
+
+    const depositAmount = Number(rental.car.deposit_amount || 0);
+
     const transaction = this.transactionRepository.create({
-      rental: rental,
+      rental,
       car: rental.car,
-      lessor: carOwner || null, // Записываем кому платить (если есть)
+      lessor: carOwner || null,
       type: TransactionType.RENTAL_PAYMENT,
-      total_amount: rental.total_price,
+      total_amount: totalAmount,
       system_fee: systemFee,
       lessor_income: lessorIncome,
       payout_status: payoutStatus,
+      base_rental_amount: baseRentalAmount,
+      penalty_amount: penaltyAmount,
+      deposit_amount: depositAmount,
+      deposit_status: DepositStatus.NOT_APPLICABLE,
+      payment_status: PaymentStatus.PAID,
+      customer_total: totalAmount + depositAmount,
     });
 
     await this.transactionRepository.save(transaction);

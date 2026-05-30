@@ -1,7 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { Transaction, PayoutStatus, TransactionType } from '../entities/transaction.entity';
+import {
+  Transaction,
+  PayoutStatus,
+  TransactionType,
+  DepositStatus,
+  PaymentStatus,
+} from '../entities/transaction.entity';
 
 @Injectable()
 export class TransactionsService {
@@ -29,7 +35,7 @@ export class TransactionsService {
   }) {
     const { _start = 0, _end = 10, _sort = 'created_at', _order = 'DESC', payout_status, type, from_date, to_date } = params;
     const take = _end - _start;
-    const allowedSortFields = ['id', 'total_amount', 'system_fee', 'lessor_income', 'payout_status', 'type', 'created_at'];
+    const allowedSortFields = ['id', 'total_amount', 'system_fee', 'lessor_income', 'payout_status', 'type', 'created_at', 'base_rental_amount', 'penalty_amount', 'deposit_amount', 'customer_total', 'payment_status'];
     const sortField = allowedSortFields.includes(_sort) ? _sort : 'created_at';
 
     const where: any = {};
@@ -61,6 +67,15 @@ export class TransactionsService {
     return { data, total };
   }
 
+  async findOne(id: number) {
+    const transaction = await this.transactionRepo.findOne({
+      where: { id },
+      relations: ['rental', 'car', 'lessor'],
+    });
+    if (!transaction) throw new NotFoundException(`Transaction #${id} not found`);
+    return transaction;
+  }
+
   async getStats() {
     const all = await this.transactionRepo.find();
 
@@ -68,27 +83,38 @@ export class TransactionsService {
     let totalSystemFees = 0;
     let totalLessorIncome = 0;
     let pendingPayouts = 0;
+    let totalPenalties = 0;
+    let totalBaseRental = 0;
+    let totalDeposits = 0;
+    let platformNetIncome = 0;
 
     all.forEach((tx) => {
       totalRevenue += Number(tx.total_amount);
       totalSystemFees += Number(tx.system_fee);
       totalLessorIncome += Number(tx.lessor_income);
+      totalPenalties += Number(tx.penalty_amount);
+      totalBaseRental += Number(tx.base_rental_amount);
+      totalDeposits += Number(tx.deposit_amount);
       if (tx.payout_status === PayoutStatus.PENDING) {
         pendingPayouts += Number(tx.lessor_income);
       }
     });
+
+    // platform net income = system_fee (already includes penalties for partner cars,
+    // and for company cars system_fee = total_amount, so this is correct)
+    platformNetIncome = totalSystemFees;
 
     const now = new Date();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
     const recentTransactions = all.filter((tx) => new Date(tx.created_at) >= sixMonthsAgo);
 
-    const monthlyBuckets: Record<string, { revenue: number; fees: number; payouts: number; count: number }> = {};
+    const monthlyBuckets: Record<string, { revenue: number; fees: number; payouts: number; count: number; penalties: number }> = {};
 
     for (let i = 0; i < 6; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      monthlyBuckets[key] = { revenue: 0, fees: 0, payouts: 0, count: 0 };
+      monthlyBuckets[key] = { revenue: 0, fees: 0, payouts: 0, count: 0, penalties: 0 };
     }
 
     recentTransactions.forEach((tx) => {
@@ -98,6 +124,7 @@ export class TransactionsService {
         monthlyBuckets[key].revenue += Number(tx.total_amount);
         monthlyBuckets[key].fees += Number(tx.system_fee);
         monthlyBuckets[key].payouts += Number(tx.lessor_income);
+        monthlyBuckets[key].penalties += Number(tx.penalty_amount);
         monthlyBuckets[key].count += 1;
       }
     });
@@ -118,15 +145,33 @@ export class TransactionsService {
       [TransactionType.DAMAGE_COMPENSATION]: all.filter((tx) => tx.type === TransactionType.DAMAGE_COMPENSATION).length,
     };
 
+    const paymentStatusCounts = {
+      [PaymentStatus.PENDING]: all.filter((tx) => tx.payment_status === PaymentStatus.PENDING).length,
+      [PaymentStatus.PAID]: all.filter((tx) => tx.payment_status === PaymentStatus.PAID).length,
+      [PaymentStatus.REFUNDED]: all.filter((tx) => tx.payment_status === PaymentStatus.REFUNDED).length,
+    };
+
+    const depositStatusCounts = {
+      [DepositStatus.NOT_APPLICABLE]: all.filter((tx) => tx.deposit_status === DepositStatus.NOT_APPLICABLE).length,
+      [DepositStatus.HELD]: all.filter((tx) => tx.deposit_status === DepositStatus.HELD).length,
+      [DepositStatus.RETURNED]: all.filter((tx) => tx.deposit_status === DepositStatus.RETURNED).length,
+    };
+
     return {
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       totalSystemFees: Math.round(totalSystemFees * 100) / 100,
       totalLessorIncome: Math.round(totalLessorIncome * 100) / 100,
       pendingPayouts: Math.round(pendingPayouts * 100) / 100,
+      totalPenalties: Math.round(totalPenalties * 100) / 100,
+      totalBaseRental: Math.round(totalBaseRental * 100) / 100,
+      totalDeposits: Math.round(totalDeposits * 100) / 100,
+      platformNetIncome: Math.round(platformNetIncome * 100) / 100,
       transactionCount: all.length,
       monthlyStats,
       payoutStatusCounts,
       typeCounts,
+      paymentStatusCounts,
+      depositStatusCounts,
     };
   }
 

@@ -18,9 +18,21 @@ export enum TransactionType {
 }
 
 export enum PayoutStatus {
-  NOT_APPLICABLE = 'NOT_APPLICABLE', // Для машин компании (никому выплачивать не надо)
-  PENDING = 'PENDING', // Должны партнеру
-  PAID = 'PAID', // Выплачено партнеру
+  NOT_APPLICABLE = 'NOT_APPLICABLE',
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+}
+
+export enum DepositStatus {
+  NOT_APPLICABLE = 'NOT_APPLICABLE',
+  HELD = 'HELD',
+  RETURNED = 'RETURNED',
+}
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  PAID = 'PAID',
+  REFUNDED = 'REFUNDED',
 }
 
 @Entity('transactions')
@@ -47,25 +59,47 @@ export class Transaction {
   })
   type: TransactionType;
 
-  // Сколько всего заплатил клиент
   @Column('decimal', { precision: 10, scale: 2 })
   total_amount: number;
 
-  // Наша комиссия сервиса (например 20%)
   @Column('decimal', { precision: 10, scale: 2 })
   system_fee: number;
 
-  // Доход партнера (80%)
   @Column('decimal', { precision: 10, scale: 2 })
   lessor_income: number;
 
-  // Статус выплаты (должны мы деньги или уже перевели)
   @Column({
     type: 'enum',
     enum: PayoutStatus,
     default: PayoutStatus.NOT_APPLICABLE,
   })
   payout_status: PayoutStatus;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  base_rental_amount: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  penalty_amount: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  deposit_amount: number;
+
+  @Column({
+    type: 'enum',
+    enum: DepositStatus,
+    default: DepositStatus.NOT_APPLICABLE,
+  })
+  deposit_status: DepositStatus;
+
+  @Column({
+    type: 'enum',
+    enum: PaymentStatus,
+    default: PaymentStatus.PAID,
+  })
+  payment_status: PaymentStatus;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  customer_total: number;
 
   @CreateDateColumn()
   created_at: Date;

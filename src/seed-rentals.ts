@@ -11,6 +11,8 @@ import {
   Transaction,
   PayoutStatus,
   TransactionType,
+  DepositStatus,
+  PaymentStatus,
 } from './entities/transaction.entity';
 import {
   PartnershipRequest,
@@ -262,24 +264,37 @@ async function bootstrap() {
       continue;
     if (!rental.car.owner) continue;
 
-    const amount = rental.total_price || rental.base_price;
-    const lessorIncome = Math.floor(amount * 0.8);
-    const serviceFee = amount - lessorIncome;
+    const baseAmount = Number(rental.base_price);
+    const penaltyAmount = Math.max(0, Number(rental.penalty_price || 0));
+    const totalAmount = baseAmount + penaltyAmount;
+
+    const lessorIncome = Math.floor(baseAmount * 0.8);
+    let systemFee = baseAmount - lessorIncome;
+    systemFee += penaltyAmount;
+
     const daysSinceStart =
       (now.getTime() - rental.start_date.getTime()) / (1000 * 60 * 60 * 24);
     const payoutStatus =
       daysSinceStart > 15 ? PayoutStatus.PAID : PayoutStatus.PENDING;
 
+    const depositAmount = Number(rental.car.deposit_amount || 0);
+
     transactionsToInsert.push({
       type: TransactionType.RENTAL_PAYMENT,
-      total_amount: amount,
+      total_amount: totalAmount,
       lessor_income: lessorIncome,
-      system_fee: serviceFee,
+      system_fee: systemFee,
       payout_status: payoutStatus,
       car: rental.car,
       rental: rental,
       lessor: rental.car.owner,
       created_at: rental.start_date,
+      base_rental_amount: baseAmount,
+      penalty_amount: penaltyAmount,
+      deposit_amount: depositAmount,
+      deposit_status: DepositStatus.NOT_APPLICABLE,
+      payment_status: PaymentStatus.PAID,
+      customer_total: totalAmount + depositAmount,
     });
   }
 
