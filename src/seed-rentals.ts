@@ -256,7 +256,7 @@ async function bootstrap() {
   // ==========================================
   // ЭТАП 4: Генерация Транзакций (Финансы)
   // ==========================================
-  console.log('💸 Генерируем транзакции для партнеров...');
+  console.log('💸 Генерируем транзакции для аренд...');
   const transactionsToInsert: Partial<Transaction>[] = [];
 
   for (const rental of savedRentals) {
@@ -272,12 +272,43 @@ async function bootstrap() {
     let systemFee = baseAmount - lessorIncome;
     systemFee += penaltyAmount;
 
+    const depositAmount = Number(rental.car.deposit_amount || 0);
+    let depositStatus = DepositStatus.NOT_APPLICABLE;
+    if (depositAmount > 0) {
+      const actualEnd = rental.actual_return_date || rental.end_date;
+      const daysSinceEnd =
+        (now.getTime() - actualEnd.getTime()) / (1000 * 60 * 60 * 24);
+      if (rental.status === RentalStatus.COMPLETED && daysSinceEnd > 30) {
+        depositStatus = DepositStatus.RETURNED;
+      } else {
+        depositStatus = DepositStatus.HELD;
+      }
+    }
+
     const daysSinceStart =
       (now.getTime() - rental.start_date.getTime()) / (1000 * 60 * 60 * 24);
-    const payoutStatus =
-      daysSinceStart > 15 ? PayoutStatus.PAID : PayoutStatus.PENDING;
+    const payoutRand = Math.random();
+    let payoutStatus: PayoutStatus;
+    if (rental.status === RentalStatus.ACTIVE || payoutRand < 0.08) {
+      payoutStatus = PayoutStatus.NOT_APPLICABLE;
+    } else if (
+      daysSinceStart > 30 ||
+      (daysSinceStart > 15 && payoutRand < 0.7)
+    ) {
+      payoutStatus = PayoutStatus.PAID;
+    } else {
+      payoutStatus = PayoutStatus.PENDING;
+    }
 
-    const depositAmount = Number(rental.car.deposit_amount || 0);
+    const paymentRand = Math.random();
+    let paymentStatus: PaymentStatus;
+    if (rental.status === RentalStatus.ACTIVE) {
+      paymentStatus = PaymentStatus.PENDING;
+    } else if (paymentRand < 0.04) {
+      paymentStatus = PaymentStatus.REFUNDED;
+    } else {
+      paymentStatus = PaymentStatus.PAID;
+    }
 
     transactionsToInsert.push({
       type: TransactionType.RENTAL_PAYMENT,
@@ -292,10 +323,54 @@ async function bootstrap() {
       base_rental_amount: baseAmount,
       penalty_amount: penaltyAmount,
       deposit_amount: depositAmount,
-      deposit_status: DepositStatus.NOT_APPLICABLE,
-      payment_status: PaymentStatus.PAID,
+      deposit_status: depositStatus,
+      payment_status: paymentStatus,
       customer_total: totalAmount + depositAmount,
     });
+  }
+
+  // --- дополнительные PENALTY / DAMAGE_COMPENSATION транзакции ---
+  const extraTypes: {
+    type: TransactionType;
+    minAmount: number;
+    maxAmount: number;
+  }[] = [
+    { type: TransactionType.PENALTY, minAmount: 20, maxAmount: 200 },
+    {
+      type: TransactionType.DAMAGE_COMPENSATION,
+      minAmount: 100,
+      maxAmount: 800,
+    },
+  ];
+  const rentalsWithOwner = savedRentals.filter(
+    (r) => r.car.owner && [RentalStatus.COMPLETED].includes(r.status),
+  );
+  for (const extra of extraTypes) {
+    const count = Math.min(15, rentalsWithOwner.length);
+    const shuffled = [...rentalsWithOwner].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < count; i++) {
+      const rental = shuffled[i];
+      const extraAmount = randomInt(extra.minAmount, extra.maxAmount);
+      transactionsToInsert.push({
+        type: extra.type,
+        total_amount: extraAmount,
+        lessor_income: 0,
+        system_fee: extraAmount,
+        payout_status:
+          Math.random() < 0.5 ? PayoutStatus.PAID : PayoutStatus.PENDING,
+        car: rental.car,
+        rental: rental,
+        lessor: rental.car.owner,
+        created_at: addDays(rental.end_date, randomInt(1, 10)),
+        base_rental_amount: 0,
+        penalty_amount:
+          extra.type === TransactionType.PENALTY ? extraAmount : 0,
+        deposit_amount: 0,
+        deposit_status: DepositStatus.NOT_APPLICABLE,
+        payment_status: PaymentStatus.PAID,
+        customer_total: extraAmount,
+      });
+    }
   }
 
   for (let i = 0; i < transactionsToInsert.length; i += chunkSize) {

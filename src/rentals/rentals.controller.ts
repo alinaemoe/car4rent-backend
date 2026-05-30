@@ -54,8 +54,9 @@ export class RentalsController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const skip = start ? parseInt(start, 10) : undefined;
-    const take = end && start ? parseInt(end, 10) - parseInt(start, 10) : undefined;
-    const sortOrder = order === 'desc' ? 'DESC' as const : 'ASC' as const;
+    const take =
+      end && start ? parseInt(end, 10) - parseInt(start, 10) : undefined;
+    const sortOrder = order === 'desc' ? ('DESC' as const) : ('ASC' as const);
 
     const result = await this.rentalsService.findAll(
       userId,

@@ -193,9 +193,8 @@ export class RentalsService {
     if (skip !== undefined) findOptions.skip = skip;
     if (take !== undefined) findOptions.take = take;
 
-    const [rentals, total] = await this.rentalRepository.findAndCount(
-      findOptions,
-    );
+    const [rentals, total] =
+      await this.rentalRepository.findAndCount(findOptions);
 
     return { data: rentals, total };
   }
