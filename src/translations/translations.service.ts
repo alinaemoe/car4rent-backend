@@ -32,7 +32,7 @@ export class TranslationsService {
 
   // 👇 Принимаем query-параметры
   async findAll(query: any = {}) {
-    const { key_like, _sort, _order } = query;
+    const { key_like, _sort, _order, _start, _end } = query;
 
     // Начинаем строить кастомный запрос
     const qb = this.translationsRepo.createQueryBuilder('translation');
@@ -50,6 +50,13 @@ export class TranslationsService {
     const sortField = _sort || 'id';
     const sortOrder = _order ? _order.toUpperCase() : 'DESC';
     qb.orderBy(`translation.${sortField}`, sortOrder as 'ASC' | 'DESC');
+
+    // Пагинация для DataGrid (Refine передает _start/_end)
+    const start = _start !== undefined ? parseInt(_start, 10) : undefined;
+    const end = _end !== undefined ? parseInt(_end, 10) : undefined;
+    if (start !== undefined && end !== undefined) {
+      qb.skip(start).take(end - start);
+    }
 
     // Выполняем запрос
     const [data, total] = await qb.getManyAndCount();

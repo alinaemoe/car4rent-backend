@@ -99,11 +99,24 @@ export class CarsService {
     });
   }
 
-  async findAll() {
-    return await this.carsRepository.find({
+  async findAll(
+    skip?: number,
+    take?: number,
+    sort?: string,
+    order?: 'ASC' | 'DESC',
+  ) {
+    const orderBy: any = sort
+      ? { [sort]: order || 'DESC' }
+      : { created_at: 'DESC' as const };
+
+    const [data, total] = await this.carsRepository.findAndCount({
       relations: ['location', 'images', 'features', 'owner'],
-      order: { created_at: 'DESC' },
+      order: orderBy,
+      skip: skip || 0,
+      take: take || 100,
     });
+
+    return { data, total };
   }
   // 👇 ОБНОВЛЕННЫЙ МЕТОД ДЛЯ МОБИЛЬНОГО КАТАЛОГА С МАКСИМАЛЬНЫМИ ФИЛЬТРАМИ
   async getCatalog(query: GetCatalogDto) {

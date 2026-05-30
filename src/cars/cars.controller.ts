@@ -11,8 +11,10 @@ import {
   UploadedFile,
   Request,
   Query,
+  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { CarsService } from './cars.service';
 import { CreateCarDto } from './dto/create-car.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
@@ -41,11 +43,27 @@ export class CarsController {
     return this.carsService.findCarsByOwner(req.user.userId);
   }
 
-  // 3. СПИСОК: Публично (каталог видят все)
+  // 3. СПИСОК: Публично (с пагинацией для DataGrid)
   @Public()
   @Get()
-  findAll() {
-    return this.carsService.findAll();
+  async findAll(
+    @Query('_start') start: string | undefined,
+    @Query('_end') end: string | undefined,
+    @Query('_sort') sort: string | undefined,
+    @Query('_order') order: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const skip = start ? parseInt(start, 10) : undefined;
+    const take =
+      end && start ? parseInt(end, 10) - parseInt(start, 10) : undefined;
+    const sortOrder = order === 'desc' ? ('DESC' as const) : ('ASC' as const);
+
+    const result = await this.carsService.findAll(skip, take, sort, sortOrder);
+
+    res.setHeader('X-Total-Count', result.total.toString());
+    res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
+
+    return result.data;
   }
 
   @Public()
