@@ -188,4 +188,36 @@ export class UsersService {
       password_hash: hash,
     });
   }
+
+  async getRegistrationStats() {
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+    const byMonth = await this.usersRepository
+      .createQueryBuilder('u')
+      .select("TO_CHAR(u.created_at, 'YYYY-MM')", 'month')
+      .addSelect('COUNT(u.id)', 'count')
+      .where('u.created_at >= :twelveMonthsAgo', { twelveMonthsAgo })
+      .groupBy("TO_CHAR(u.created_at, 'YYYY-MM')")
+      .orderBy('"month"', 'ASC')
+      .getRawMany();
+
+    const buckets: Record<string, number> = {};
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      buckets[key] = 0;
+    }
+    for (const row of byMonth) {
+      if (buckets[row.month] !== undefined) buckets[row.month] = parseInt(row.count) || 0;
+    }
+
+    return {
+      total: await this.usersRepository.count(),
+      thisMonth: byMonth
+        .filter((r) => r.month === `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
+        .reduce((s, r) => s + (parseInt(r.count) || 0), 0),
+      byMonth: Object.entries(buckets).map(([month, count]) => ({ month, count })),
+    };
+  }
 }

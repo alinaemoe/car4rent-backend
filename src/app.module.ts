@@ -25,6 +25,7 @@ import { EmailModule } from './email/email.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { FaqModule } from './faq/faq.module';
 import { NewsModule } from './news/news.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { NewsModule } from './news/news.module';
     TransactionsModule,
     FaqModule,
     NewsModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [

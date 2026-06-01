@@ -54,12 +54,16 @@ export class UsersController {
     return this.usersService.updateAvatar(req.user.userId, avatarUrl);
   }
 
-  // 👇 ЗАЩИЩАЕМ СПИСОК ЮЗЕРОВ (Только Админ может видеть всех)
-  // Импортируй Roles из декоратора и UserRole из entity!
   @Get()
   @Roles(UserRole.ADMIN)
   findAll() {
     return this.usersService.findAll();
+  }
+
+  @Get('registration-stats')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  getRegistrationStats() {
+    return this.usersService.getRegistrationStats();
   }
 
   @Get(':id')
