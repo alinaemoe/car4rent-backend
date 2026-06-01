@@ -19,6 +19,7 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../entities/user.entity';
 import { CreateCarDamageDto } from './dto/create-car-damage.dto';
+import { UpdateCarDamageDto } from './dto/update-car-damage.dto';
 
 @Controller('car-damages')
 @UseGuards(JwtAuthGuard)
@@ -62,6 +63,14 @@ export class CarDamagesController {
   @Patch(':id/pay')
   markAsPaid(@Param('id', ParseIntPipe) id: number) {
     return this.service.markAsPaid(id);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateCarDamageDto,
+  ) {
+    return this.service.update(id, dto);
   }
 
   @Post()

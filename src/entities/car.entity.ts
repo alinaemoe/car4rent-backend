@@ -76,6 +76,18 @@ export class Car {
   @Column({ type: 'int', nullable: true })
   horsepower: number;
 
+  @Column('decimal', { precision: 3, scale: 1, nullable: true })
+  engine_capacity: number;
+
+  @Column({ type: 'int', default: 5 })
+  seats: number;
+
+  @Column({ type: 'boolean', default: false })
+  is_new: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  is_promo: boolean;
+
   @Column('decimal', { precision: 4, scale: 1, nullable: true })
   fuel_consumption: number;
 

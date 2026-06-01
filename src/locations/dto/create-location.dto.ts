@@ -16,4 +16,11 @@ export class CreateLocationDto {
   @IsNumber()
   @IsOptional()
   longitude?: number;
+
+  @IsString()
+  @IsOptional()
+  phone?: string;
+
+  @IsOptional()
+  is_main?: boolean;
 }

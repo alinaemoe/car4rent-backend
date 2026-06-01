@@ -4,6 +4,7 @@ import { Repository, FindOptionsWhere } from 'typeorm';
 import { CarDamage } from '../entities/car-damage.entity';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CreateCarDamageDto } from './dto/create-car-damage.dto';
+import { UpdateCarDamageDto } from './dto/update-car-damage.dto';
 
 interface FindAllParams {
   carId?: number;
@@ -78,6 +79,21 @@ export class CarDamagesService {
       car: { id: dto.carId },
       rental: dto.rentalId ? { id: dto.rentalId } : undefined,
     });
+    return await this.repo.save(damage);
+  }
+
+  async update(id: number, dto: UpdateCarDamageDto) {
+    const damage = await this.repo.findOne({ where: { id } });
+    if (!damage) throw new NotFoundException('Damage record not found');
+
+    if (dto.type !== undefined) damage.type = dto.type;
+    if (dto.description !== undefined) damage.description = dto.description;
+    if (dto.repair_cost !== undefined) damage.repair_cost = dto.repair_cost;
+    if (dto.image_url !== undefined) damage.image_url = dto.image_url;
+    if (dto.coord_x !== undefined) damage.coord_x = dto.coord_x;
+    if (dto.coord_y !== undefined) damage.coord_y = dto.coord_y;
+    if (dto.coord_z !== undefined) damage.coord_z = dto.coord_z;
+
     return await this.repo.save(damage);
   }
 

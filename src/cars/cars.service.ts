@@ -289,13 +289,7 @@ export class CarsService {
     } else if (query.sort_by === 'price_desc') {
       qb.orderBy('car.price_per_day', 'DESC');
     } else if (query.sort_by === 'rating_desc') {
-      qb.addSelect((subQuery) => {
-        return subQuery
-          .select('COALESCE(AVG(r.rating), 0)', 'avg_rating')
-          .from('reviews', 'r')
-          .where('r.car_id = car.id');
-      }, 'ratingOrder');
-      qb.orderBy('ratingOrder', 'DESC');
+      // сортировка в памяти после ручного маппинга avg_rating (см. шаг 8)
     } else {
       qb.orderBy('car.created_at', 'DESC');
     }
@@ -330,6 +324,11 @@ export class CarsService {
       data.forEach((car: any) => {
         car.avg_rating = ratingMap.get(car.id) || 0;
       });
+    }
+
+    // 9. СОРТИРОВКА В ПАМЯТИ для rating_desc (TypeORM не умеет subquery + skip/take)
+    if (query.sort_by === 'rating_desc') {
+      data.sort((a: any, b: any) => (b.avg_rating || 0) - (a.avg_rating || 0));
     }
 
     return {

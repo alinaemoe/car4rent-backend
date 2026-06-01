@@ -100,6 +100,20 @@ export class CreateCarDto {
   @IsOptional()
   insurance_type?: string;
 
+  @IsNumber()
+  @IsOptional()
+  engine_capacity?: number;
+
+  @IsInt()
+  @IsOptional()
+  seats?: number;
+
+  @IsOptional()
+  is_new?: boolean;
+
+  @IsOptional()
+  is_promo?: boolean;
+
   @IsInt()
   @IsOptional()
   min_age?: number;

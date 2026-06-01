@@ -16,4 +16,10 @@ export class Location {
 
   @Column('decimal', { precision: 10, scale: 6, nullable: true })
   longitude: number;
+
+  @Column({ nullable: true })
+  phone: string;
+
+  @Column({ type: 'boolean', default: false })
+  is_main: boolean;
 }
