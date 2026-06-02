@@ -70,17 +70,46 @@ async function bootstrap() {
   // ЭТАП 1: Создаем Партнеров (Раздаем машины)
   // ==========================================
   console.log('👔 Назначаем владельцев автомобилям (создаем LESSOR-ов)...');
-  let lessorsCount = 0;
+
+  const guaranteedEmail = 'mega2@gmail.com';
+  const guaranteedUser = users.find((u) => u.email === guaranteedEmail);
+
+  if (guaranteedUser) {
+    console.log(`🎯 Найден ${guaranteedEmail}, назначаем LESSOR + 3 машины...`);
+    if (!guaranteedUser.roles.includes(UserRole.LESSOR)) {
+      guaranteedUser.roles.push(UserRole.LESSOR);
+    }
+  } else {
+    console.warn(
+      `⚠️ Пользователь ${guaranteedEmail} не найден! Пропускаем гарантированное назначение.`,
+    );
+  }
+
+  const assignedCars = new Set<Car>();
   const usersToUpdate = new Set<User>();
 
+  if (guaranteedUser) {
+    usersToUpdate.add(guaranteedUser);
+    const pool = cars.filter((c) => !c.owner);
+    for (let i = 0; i < Math.min(3, pool.length); i++) {
+      const car = pool[i];
+      car.owner = guaranteedUser;
+      assignedCars.add(car);
+    }
+    console.log(
+      `✅ ${guaranteedEmail} → владелец ${Math.min(3, pool.length)} машин(ы).`,
+    );
+  }
+
+  // Остальные машины — рандом (30%)
   for (const car of cars) {
+    if (assignedCars.has(car)) continue;
     if (Math.random() < 0.3) {
       const owner = randomElement(users);
       car.owner = owner;
       if (!owner.roles.includes(UserRole.LESSOR)) {
         owner.roles.push(UserRole.LESSOR);
         usersToUpdate.add(owner);
-        lessorsCount++;
       }
     } else {
       car.owner = null;
@@ -89,7 +118,11 @@ async function bootstrap() {
 
   await userRepo.save(Array.from(usersToUpdate));
   await carRepo.save(cars);
-  console.log(`✅ Выдано ролей LESSOR: ${lessorsCount}. Машины привязаны.`);
+  const totalLessors = await userRepo
+    .createQueryBuilder('u')
+    .where(':role = ANY(u.roles)', { role: UserRole.LESSOR })
+    .getCount();
+  console.log(`✅ Всего LESSOR-ов в БД: ${totalLessors}. Машины привязаны.`);
 
   // ==========================================
   // ЭТАП 2: Заявки на партнерство
