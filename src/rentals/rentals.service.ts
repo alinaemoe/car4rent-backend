@@ -141,7 +141,7 @@ export class RentalsService {
   async findMyRentals(userId: string) {
     const rentals = await this.rentalRepository.find({
       where: { user: { id: userId } },
-      relations: ['car', 'car.images', 'reviews'], // 👈 Подтягиваем связи
+      relations: ['car', 'car.images', 'car.location', 'reviews'], // 👈 Подтягиваем связи
       order: { created_at: 'DESC' },
     });
 

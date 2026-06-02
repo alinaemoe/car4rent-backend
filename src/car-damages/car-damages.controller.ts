@@ -39,7 +39,7 @@ export class CarDamagesController {
   @Get()
   findAll(
     @Query('carId') carId?: string,
-    @Query('isPaid') isPaid?: string,
+    @Query('is_paid') isPaid?: string,
     @Query('_start') _start?: string,
     @Query('_end') _end?: string,
     @Query('_sort') _sort?: string,

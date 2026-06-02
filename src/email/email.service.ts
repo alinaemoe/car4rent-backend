@@ -10,7 +10,7 @@ export class EmailService {
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'car4rent.app@gmail.com',
+        user: 'redacted@example.com',
         pass: 'REMOVED',
       },
     });
