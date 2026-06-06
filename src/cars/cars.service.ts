@@ -104,17 +104,29 @@ export class CarsService {
     take?: number,
     sort?: string,
     order?: 'ASC' | 'DESC',
+    q?: string,
   ) {
-    const orderBy: any = sort
-      ? { [sort]: order || 'DESC' }
-      : { created_at: 'DESC' as const };
+    const qb = this.carsRepository.createQueryBuilder('car');
+    qb.leftJoinAndSelect('car.location', 'location');
+    qb.leftJoinAndSelect('car.images', 'images');
+    qb.leftJoinAndSelect('car.features', 'features');
+    qb.leftJoinAndSelect('car.owner', 'owner');
 
-    const [data, total] = await this.carsRepository.findAndCount({
-      relations: ['location', 'images', 'features', 'owner'],
-      order: orderBy,
-      skip: skip || 0,
-      take: take || 100,
-    });
+    if (q) {
+      qb.andWhere(
+        '(LOWER(car.brand) LIKE LOWER(:q) OR LOWER(car.model) LIKE LOWER(:q) OR LOWER(car.license_plate) LIKE LOWER(:q))',
+        { q: `%${q}%` },
+      );
+    }
+
+    const orderColumn = sort || 'created_at';
+    const orderDir = order || 'DESC';
+    qb.orderBy(`car.${orderColumn}`, orderDir);
+
+    qb.skip(skip || 0);
+    qb.take(take || 100);
+
+    const [data, total] = await qb.getManyAndCount();
 
     return { data, total };
   }
@@ -172,6 +184,10 @@ export class CarsService {
     const driveTypes = toArray(query.drive_types);
     if (driveTypes.length > 0)
       qb.andWhere('car.drive_type IN (:...driveTypes)', { driveTypes });
+
+    const colors = toArray(query.colors);
+    if (colors.length > 0)
+      qb.andWhere('car.color IN (:...colors)', { colors });
 
     // 3. ЧИСЛОВЫЕ ДИАПАЗОНЫ (От и До)
     if (query.min_price)

@@ -51,6 +51,7 @@ export class CarsController {
     @Query('_end') end: string | undefined,
     @Query('_sort') sort: string | undefined,
     @Query('_order') order: string | undefined,
+    @Query('q') q: string | undefined,
     @Res({ passthrough: true }) res: Response,
   ) {
     const skip = start ? parseInt(start, 10) : undefined;
@@ -58,7 +59,7 @@ export class CarsController {
       end && start ? parseInt(end, 10) - parseInt(start, 10) : undefined;
     const sortOrder = order === 'desc' ? ('DESC' as const) : ('ASC' as const);
 
-    const result = await this.carsService.findAll(skip, take, sort, sortOrder);
+    const result = await this.carsService.findAll(skip, take, sort, sortOrder, q);
 
     res.setHeader('X-Total-Count', result.total.toString());
     res.setHeader('Access-Control-Expose-Headers', 'X-Total-Count');
