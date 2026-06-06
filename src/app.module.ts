@@ -32,14 +32,15 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: '127.0.0.1',
-      port: 5434,
-      username: 'root', // As in docker-compose
-      password: 'root', // As in docker-compose
-      database: 'car4rent', // Database name
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
+      host: process.env.DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.DB_PORT || '5434'),
+      username: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || 'root',
+      database: process.env.DB_NAME || 'car4rent',
       autoLoadEntities: true,
-      synchronize: true,
+      synchronize: process.env.DB_SYNC !== 'false',
+      migrations: ['dist/migrations/*.js'],
+      migrationsRun: process.env.DB_MIGRATIONS_RUN === 'true',
     }),
     UsersModule,
     AuthModule,
