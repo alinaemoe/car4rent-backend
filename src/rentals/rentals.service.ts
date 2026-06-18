@@ -69,6 +69,13 @@ export class RentalsService {
     // 2. Find the car (Ensure location is loaded to know where to pick it up)
     const car = await this.carsService.findOne(car_id);
 
+    // 2a. Guard: reject booking if car is not in AVAILABLE state
+    if (car.status !== CarStatus.AVAILABLE) {
+      throw new BadRequestException(
+        `Car is not available for rent (current status: ${car.status})`,
+      );
+    }
+
     // 3. Check for overlaps (CREATED + APPROVED + ACTIVE)
     // We check if the car is already active or booked during these dates
     const overlap = await this.rentalRepository.findOne({

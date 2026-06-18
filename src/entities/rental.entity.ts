@@ -29,12 +29,12 @@ export class Rental {
   id: number;
 
   // WHO
-  @ManyToOne(() => User, (user) => user.rentals)
+  @ManyToOne(() => User, (user) => user.rentals, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
   // WHAT
-  @ManyToOne(() => Car, (car) => car.rentals)
+  @ManyToOne(() => Car, (car) => car.rentals, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'car_id' })
   car: Car;
 

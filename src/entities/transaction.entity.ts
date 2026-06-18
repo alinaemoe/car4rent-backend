@@ -40,15 +40,15 @@ export class Transaction {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Rental, { nullable: true })
+  @ManyToOne(() => Rental, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'rental_id' })
   rental: Rental | null;
 
-  @ManyToOne(() => Car)
+  @ManyToOne(() => Car, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'car_id' })
   car: Car;
 
-  @ManyToOne(() => User, { nullable: true })
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'lessor_id' })
   lessor: User | null;
 

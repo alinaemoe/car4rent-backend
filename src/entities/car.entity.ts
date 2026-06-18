@@ -132,7 +132,7 @@ export class Car {
   @JoinColumn({ name: 'location_id' })
   location: Location | null;
 
-  @OneToMany(() => CarImage, (image) => image.car)
+  @OneToMany(() => CarImage, (image) => image.car, { cascade: ['remove'] })
   images: CarImage[];
 
   @ManyToMany(() => Feature)
