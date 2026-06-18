@@ -105,6 +105,7 @@ export class CarsService {
     sort?: string,
     order?: 'ASC' | 'DESC',
     q?: string,
+    status?: string,
   ) {
     const qb = this.carsRepository.createQueryBuilder('car');
     qb.leftJoinAndSelect('car.location', 'location');
@@ -117,6 +118,10 @@ export class CarsService {
         '(LOWER(car.brand) LIKE LOWER(:q) OR LOWER(car.model) LIKE LOWER(:q) OR LOWER(car.license_plate) LIKE LOWER(:q))',
         { q: `%${q}%` },
       );
+    }
+
+    if (status) {
+      qb.andWhere('car.status = :status', { status });
     }
 
     const orderColumn = sort || 'created_at';
