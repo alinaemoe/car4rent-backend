@@ -114,6 +114,8 @@ export class RentalsService {
         }
       }
     }
+    // Guard: clamp to [0, 100] so a misconfigured tier can't produce a negative price
+    discountPercent = Math.min(100, Math.max(0, discountPercent));
 
     const discountAmount = Math.floor((basePrice * discountPercent) / 100);
     const finalPrice = basePrice - discountAmount;
@@ -240,11 +242,56 @@ export class RentalsService {
   }
 
   async updateStatus(id: number, status: RentalStatus) {
-    const rental = await this.rentalRepository.findOne({ where: { id } });
+    const VALID_TRANSITIONS: Record<RentalStatus, RentalStatus[]> = {
+      [RentalStatus.CREATED]: [RentalStatus.APPROVED, RentalStatus.CANCELED],
+      [RentalStatus.APPROVED]: [
+        RentalStatus.ACTIVE,
+        RentalStatus.CANCELED,
+      ],
+      [RentalStatus.ACTIVE]: [
+        RentalStatus.COMPLETED,
+        RentalStatus.CANCELED,
+        RentalStatus.OVERDUE,
+      ],
+      [RentalStatus.OVERDUE]: [
+        RentalStatus.COMPLETED,
+        RentalStatus.CANCELED,
+      ],
+      [RentalStatus.COMPLETED]: [],
+      [RentalStatus.CANCELED]: [],
+    };
+
+    const rental = await this.rentalRepository.findOne({
+      where: { id },
+      relations: ['car'],
+    });
     if (!rental) throw new NotFoundException('Rental not found');
 
+    const allowed = VALID_TRANSITIONS[rental.status] ?? [];
+    if (!allowed.includes(status)) {
+      throw new BadRequestException(
+        `Cannot transition rental from ${rental.status} to ${status}`,
+      );
+    }
+
+    const wasActive = rental.status === RentalStatus.ACTIVE;
     rental.status = status;
-    return await this.rentalRepository.save(rental);
+    await this.rentalRepository.save(rental);
+
+    // When force-closing an ACTIVE rental, free the car back to AVAILABLE
+    // so it doesn't stay permanently locked in RENTED state.
+    if (
+      wasActive &&
+      (status === RentalStatus.CANCELED || status === RentalStatus.COMPLETED)
+    ) {
+      await this.carsService.updateMileageAndStatus(
+        rental.car.id,
+        rental.car.current_mileage,
+        CarStatus.AVAILABLE,
+      );
+    }
+
+    return rental;
   }
 
   // 🚀 START OF LEASE (Key handover)
@@ -290,7 +337,8 @@ export class RentalsService {
       throw new NotFoundException('Rental not found');
     }
 
-    const isAdmin = roles.includes(UserRole.ADMIN);
+    const isAdmin =
+      roles.includes(UserRole.ADMIN) || roles.includes(UserRole.MANAGER);
     const isOwner = rental.user.id === userId;
 
     if (!isAdmin && !isOwner) {
