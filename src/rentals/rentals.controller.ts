@@ -51,6 +51,7 @@ export class RentalsController {
     @Query('_end') end: string | undefined,
     @Query('_sort') sort: string | undefined,
     @Query('_order') order: string | undefined,
+    @Query('carId') carId: string | undefined,
     @Res({ passthrough: true }) res: Response,
   ) {
     const skip = start ? parseInt(start, 10) : undefined;
@@ -65,6 +66,7 @@ export class RentalsController {
       take,
       sort,
       sortOrder,
+      carId,
     );
 
     res.setHeader('X-Total-Count', result.total.toString());

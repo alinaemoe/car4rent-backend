@@ -174,11 +174,13 @@ export class RentalsService {
     take?: number,
     sort?: string,
     order?: 'ASC' | 'DESC',
+    carId?: string,
   ) {
     const whereCondition: any = {};
 
     if (userId) whereCondition.user = { id: userId };
     if (status) whereCondition.status = status;
+    if (carId) whereCondition.car = { id: Number(carId) };
 
     const findOptions: any = {
       where: whereCondition,
