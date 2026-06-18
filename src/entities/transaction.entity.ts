@@ -46,7 +46,7 @@ export class Transaction {
 
   @ManyToOne(() => Car, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'car_id' })
-  car: Car;
+  car: Car | null;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'lessor_id' })
