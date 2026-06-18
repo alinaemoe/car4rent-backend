@@ -498,7 +498,7 @@ export class CarsService {
   async updateMileageAndStatus(id: number, mileage: number, statusStr: string) {
     const car = await this.findOne(id);
     car.current_mileage = mileage;
-    car.status = CarStatus.AVAILABLE;
+    car.status = statusStr as CarStatus;
     return this.carsRepository.save(car);
   }
 

@@ -11,12 +11,15 @@ import {
   PartnershipRequest,
   RequestStatus,
 } from '../entities/partnership-request.entity';
+import { User, UserRole } from '../entities/user.entity';
 
 @Injectable()
 export class PartnershipRequestsService {
   constructor(
     @InjectRepository(PartnershipRequest)
     private repo: Repository<PartnershipRequest>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
   ) {}
 
   async create(dto: CreatePartnershipDto, photos: string[], userId: string) {
@@ -58,11 +61,27 @@ export class PartnershipRequestsService {
   }
 
   async updateStatus(id: number, status: RequestStatus) {
-    const request = await this.repo.findOne({ where: { id } });
+    const request = await this.repo.findOne({
+      where: { id },
+      relations: ['user'],
+    });
     if (!request) throw new NotFoundException('Request not found');
 
     request.status = status;
-    return await this.repo.save(request);
+    await this.repo.save(request);
+
+    // Grant LESSOR role when approved
+    if (status === RequestStatus.APPROVED && request.user) {
+      const user = await this.usersRepository.findOne({
+        where: { id: request.user.id },
+      });
+      if (user && !user.roles.includes(UserRole.LESSOR)) {
+        user.roles = [...user.roles, UserRole.LESSOR];
+        await this.usersRepository.save(user);
+      }
+    }
+
+    return request;
   }
 
   async remove(id: number, userId: string) {
