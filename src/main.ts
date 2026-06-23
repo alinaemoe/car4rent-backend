@@ -7,6 +7,12 @@ import { json, urlencoded } from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Поднимаем лимит тела запроса до 25 МБ (дефолт Express — всего 100 КБ).
+  // Файлы (фото/документы) идут через multipart/Multer и сюда не попадают,
+  // но этот лимит страхует любые JSON-эндпоинты с тяжёлой полезной нагрузкой.
+  app.use(json({ limit: '25mb' }));
+  app.use(urlencoded({ extended: true, limit: '25mb' }));
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
