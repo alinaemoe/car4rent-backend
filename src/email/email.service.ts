@@ -13,6 +13,13 @@ export class EmailService {
         user: 'redacted@example.com',
         pass: 'REMOVED',
       },
+      // ⚠️ ВРЕМЕННО: хостинг (Timeweb) блокирует исходящие SMTP-порты 465/587,
+      // поэтому на проде письмо не уходит. Жёсткие таймауты, чтобы попытка
+      // отправки падала за секунды, а не висела минутами и не тормозила запрос.
+      // Локально (порты открыты) письмо отправляется как обычно.
+      connectionTimeout: 7000,
+      greetingTimeout: 7000,
+      socketTimeout: 7000,
     });
   }
 
@@ -32,8 +39,12 @@ export class EmailService {
       });
       this.logger.log(`📧 OTP отправлен на ${email}, ${otp}`);
     } catch (error) {
-      this.logger.error(`❌ Ошибка отправки Email на ${email}:`, error);
-      throw new Error('Не удалось отправить email');
+      // ⚠️ ВРЕМЕННО: SMTP-порты заблокированы хостингом. Фейл отправки НЕ должен
+      // ронять регистрацию — гасим ошибку и только логируем. Код всё равно
+      // сохранён в БД, а на защите используется мастер-код (см. AuthService).
+      this.logger.warn(
+        `⚠️ Email не отправлен (SMTP недоступен) на ${email}. OTP=${otp}. ${error?.message ?? ''}`,
+      );
     }
   }
 
@@ -53,8 +64,10 @@ export class EmailService {
       });
       this.logger.log(`📧 Password reset OTP отправлен на ${email}, ${otp}`);
     } catch (error) {
-      this.logger.error(`❌ Ошибка отправки Email на ${email}:`, error);
-      throw new Error('Не удалось отправить email');
+      // ⚠️ ВРЕМЕННО: см. комментарий выше — фейл отправки не ломает сброс пароля.
+      this.logger.warn(
+        `⚠️ Email сброса не отправлен (SMTP недоступен) на ${email}. OTP=${otp}. ${error?.message ?? ''}`,
+      );
     }
   }
 

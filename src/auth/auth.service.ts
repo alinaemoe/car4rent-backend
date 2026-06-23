@@ -1,6 +1,7 @@
 // src/auth/auth.service.ts
 import {
   Injectable,
+  Logger,
   UnauthorizedException,
   ForbiddenException,
   ConflictException,
@@ -17,6 +18,14 @@ import { UserStatus } from 'src/entities/user.entity';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
+  // ⚠️ ВРЕМЕННО (защита диплома): хостинг блокирует SMTP, письма с OTP не доходят.
+  // Этот мастер-код ВСЕГДА принимается при верификации email и сбросе пароля,
+  // в обход проверки реального кода из письма. Локально письма уходят как обычно,
+  // и реальный код тоже продолжает работать. На защите вводим именно его.
+  private readonly MASTER_OTP = '123456';
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -137,9 +146,13 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
-    // 4. Сохраняем код и шлем письмо
+    // 4. Сохраняем код. Письмо шлём в фоне (fire-and-forget): на проде SMTP
+    //    заблокирован, поэтому НЕ ждём отправку и НЕ даём её фейлу сломать
+    //    регистрацию. Мобилка сразу получает успех и переходит к вводу OTP.
+    //    На защите вводится мастер-код, локально приходит реальное письмо.
     await this.usersService.updateOtpDetails(targetUserId, otpHash, expiresAt);
-    await this.emailService.sendEmailVerificationOTP(dto.email, otp);
+    this.logger.log(`🔑 OTP для ${dto.email}: ${otp} (мастер-код: ${this.MASTER_OTP})`);
+    void this.emailService.sendEmailVerificationOTP(dto.email, otp);
 
     return { message: 'Код подтверждения отправлен на почту' };
   }
@@ -154,14 +167,18 @@ export class AuthService {
     if (user.is_email_verified) {
       throw new BadRequestException('Email уже подтвержден');
     }
-    if (!user.otp_expires_at || user.otp_expires_at < new Date()) {
-      throw new BadRequestException('Код подтверждения истек');
-    }
 
-    // Сравниваем присланный OTP с хэшем в базе
-    const isOtpValid = await bcrypt.compare(otp, user.verification_otp_hash);
-    if (!isOtpValid) {
-      throw new BadRequestException('Неверный код подтверждения');
+    // ⚠️ ВРЕМЕННО: мастер-код проходит без проверки срока и хэша (SMTP заблокирован).
+    if (otp !== this.MASTER_OTP) {
+      if (!user.otp_expires_at || user.otp_expires_at < new Date()) {
+        throw new BadRequestException('Код подтверждения истек');
+      }
+
+      // Сравниваем присланный OTP с хэшем в базе
+      const isOtpValid = await bcrypt.compare(otp, user.verification_otp_hash);
+      if (!isOtpValid) {
+        throw new BadRequestException('Неверный код подтверждения');
+      }
     }
 
     // Если всё ок — верифицируем
@@ -215,7 +232,9 @@ export class AuthService {
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
     await this.usersService.updateOtpDetails(user.id, otpHash, expiresAt);
-    await this.emailService.sendEmailVerificationOTP(user.email, newOtp);
+    // Отправка в фоне (см. register). Фейл SMTP не ломает ответ.
+    this.logger.log(`🔑 Повторный OTP для ${user.email}: ${newOtp} (мастер: ${this.MASTER_OTP})`);
+    void this.emailService.sendEmailVerificationOTP(user.email, newOtp);
 
     return { message: 'Новый код подтверждения отправлен на почту' };
   }
@@ -239,7 +258,9 @@ export class AuthService {
       expiresAt,
       0,
     );
-    await this.emailService.sendPasswordResetOTP(user.email, otp);
+    // Отправка в фоне (см. register). Фейл SMTP не ломает ответ.
+    this.logger.log(`🔑 OTP сброса для ${user.email}: ${otp} (мастер: ${this.MASTER_OTP})`);
+    void this.emailService.sendPasswordResetOTP(user.email, otp);
 
     return { message: 'Код для сброса пароля отправлен на почту' };
   }
@@ -250,32 +271,38 @@ export class AuthService {
       throw new NotFoundException('Пользователь с таким email не найден');
     }
 
-    if (!user.reset_password_otp_hash) {
-      throw new BadRequestException('Код для сброса не был запрошен');
-    }
+    // ⚠️ ВРЕМЕННО: мастер-код проходит без проверок (SMTP заблокирован).
+    if (otp !== this.MASTER_OTP) {
+      if (!user.reset_password_otp_hash) {
+        throw new BadRequestException('Код для сброса не был запрошен');
+      }
 
-    if (
-      !user.reset_password_otp_expires_at ||
-      user.reset_password_otp_expires_at < new Date()
-    ) {
-      await this.usersService.clearResetOtpDetails(user.id);
-      throw new BadRequestException('Код истек. Запросите новый код.');
-    }
+      if (
+        !user.reset_password_otp_expires_at ||
+        user.reset_password_otp_expires_at < new Date()
+      ) {
+        await this.usersService.clearResetOtpDetails(user.id);
+        throw new BadRequestException('Код истек. Запросите новый код.');
+      }
 
-    if (user.reset_password_attempts >= 5) {
-      await this.usersService.clearResetOtpDetails(user.id);
-      throw new BadRequestException(
-        'Слишком много неверных попыток. Запросите новый код.',
+      if (user.reset_password_attempts >= 5) {
+        await this.usersService.clearResetOtpDetails(user.id);
+        throw new BadRequestException(
+          'Слишком много неверных попыток. Запросите новый код.',
+        );
+      }
+
+      const isOtpValid = await bcrypt.compare(
+        otp,
+        user.reset_password_otp_hash,
       );
-    }
-
-    const isOtpValid = await bcrypt.compare(otp, user.reset_password_otp_hash);
-    if (!isOtpValid) {
-      await this.usersService.incrementResetAttempts(user.id);
-      const remaining = 4 - user.reset_password_attempts;
-      throw new BadRequestException(
-        `Неверный код. Осталось попыток: ${Math.max(0, remaining)}`,
-      );
+      if (!isOtpValid) {
+        await this.usersService.incrementResetAttempts(user.id);
+        const remaining = 4 - user.reset_password_attempts;
+        throw new BadRequestException(
+          `Неверный код. Осталось попыток: ${Math.max(0, remaining)}`,
+        );
+      }
     }
 
     await this.usersService.updatePassword(user.id, newPassword);

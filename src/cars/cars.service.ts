@@ -74,8 +74,12 @@ export class CarsService {
       await this.carImagesRepository.save(imagesToSave);
     }
 
-    // 👇 ВЫДАЧА РОЛИ LESSOR
-    // Если у машины есть владелец (и это не null), проверяем его роль
+    // 👇 ВЫДАЧА РОЛИ LESSOR (вторая страховка)
+    // Роль партнёра выдаётся ещё на этапе одобрения заявки
+    // (PartnershipRequestsService.updateStatus). Здесь дублируем: если машину
+    // привязали к юзеру, гарантированно делаем его лессором. Так в мобилке точно
+    // появится вкладка "Мой автопарк", а GET /cars/my (findCarsByOwner) вернёт
+    // эту машину, т.к. owner_id теперь проставлен корректно.
     if (finalOwnerId) {
       const user = await this.usersRepository.findOne({
         where: { id: finalOwnerId },
