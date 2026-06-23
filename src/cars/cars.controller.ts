@@ -37,8 +37,13 @@ export class CarsController {
   }
 
   // 2. МОИ МАШИНЫ: ВАЖНО! Этот роут должен быть ВЫШЕ, чем @Get(':id')
+  // ⚠️ НЕ гейтим по @Roles(LESSOR). Роль LESSOR выдаётся в БД при одобрении
+  // заявки/создании машины, но JWT клиента остаётся «старым» (roles в токене
+  // не меняются до перелогина/рефреша). Из-за этого свежий лессор получал 403
+  // и вкладка "Мой автопарк" была пустой. Эндпоинт и так самоограничен:
+  // findCarsByOwner(req.user.userId) возвращает ТОЛЬКО машины вызывающего,
+  // поэтому проверка роли тут избыточна — достаточно аутентификации (JwtAuthGuard).
   @Get('my')
-  @Roles(UserRole.LESSOR, UserRole.ADMIN, UserRole.MANAGER)
   findMyCars(@Request() req) {
     return this.carsService.findCarsByOwner(req.user.userId);
   }
