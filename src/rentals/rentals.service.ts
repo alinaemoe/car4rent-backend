@@ -430,6 +430,9 @@ export class RentalsService {
           description: dmgDto.description,
           repair_cost: dmgDto.repair_cost,
           image_url: dmgDto.image_url,
+          coord_x: dmgDto.coord_x ?? null,
+          coord_y: dmgDto.coord_y ?? null,
+          coord_z: dmgDto.coord_z ?? null,
           is_paid: false,
         });
 

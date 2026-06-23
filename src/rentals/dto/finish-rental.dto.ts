@@ -31,6 +31,19 @@ export class RentalDamageDto {
   @IsOptional()
   @IsString()
   image_url?: string;
+
+  // 3D-координаты метки повреждения на модели (для 3D-аудита)
+  @IsOptional()
+  @IsNumber()
+  coord_x?: number;
+
+  @IsOptional()
+  @IsNumber()
+  coord_y?: number;
+
+  @IsOptional()
+  @IsNumber()
+  coord_z?: number;
 }
 
 export class FinishRentalDto {
