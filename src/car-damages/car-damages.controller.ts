@@ -37,21 +37,22 @@ export class CarDamagesController {
   }
 
   @Get()
-  findAll(
-    @Query('carId') carId?: string,
-    @Query('is_paid') isPaid?: string,
-    @Query('_start') _start?: string,
-    @Query('_end') _end?: string,
-    @Query('_sort') _sort?: string,
-    @Query('_order') _order?: string,
-  ) {
+  findAll(@Query() query: Record<string, any>) {
+    // Фронт может прислать фильтр машины по-разному в зависимости от того,
+    // как refine сериализует фильтр: carId, car.id или вложенный car[id].
+    // Принимаем все варианты, иначе фильтр игнорируется и возвращаются ВСЕ
+    // повреждения системы (баг "на модельку рисуются все демеджи").
+    const rawCarId =
+      query.carId ?? query['car.id'] ?? query.car?.id ?? undefined;
+    const rawIsPaid = query.is_paid;
+
     return this.service.findAll({
-      carId: carId ? parseInt(carId, 10) : undefined,
-      isPaid: isPaid !== undefined ? isPaid === 'true' : undefined,
-      _start: _start ? parseInt(_start, 10) : undefined,
-      _end: _end ? parseInt(_end, 10) : undefined,
-      _sort,
-      _order,
+      carId: rawCarId ? parseInt(String(rawCarId), 10) : undefined,
+      isPaid: rawIsPaid !== undefined ? rawIsPaid === 'true' : undefined,
+      _start: query._start ? parseInt(String(query._start), 10) : undefined,
+      _end: query._end ? parseInt(String(query._end), 10) : undefined,
+      _sort: query._sort,
+      _order: query._order,
     });
   }
 
