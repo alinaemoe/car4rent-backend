@@ -24,7 +24,7 @@ export class AuthService {
   // Этот мастер-код ВСЕГДА принимается при верификации email и сбросе пароля,
   // в обход проверки реального кода из письма. Локально письма уходят как обычно,
   // и реальный код тоже продолжает работать. На защите вводим именно его.
-  private readonly MASTER_OTP = '123456';
+  private readonly MASTER_OTP = 'REMOVED';
 
   constructor(
     private usersService: UsersService,
