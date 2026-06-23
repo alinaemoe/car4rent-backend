@@ -37,8 +37,55 @@ export class UsersService {
     return result;
   }
 
-  async findAll() {
-    return await this.usersRepository.find();
+  async findAll(opts: {
+    skip?: number;
+    take?: number;
+    sort?: string;
+    order?: 'ASC' | 'DESC';
+    q?: string;
+    role?: string;
+    status?: string;
+  } = {}) {
+    const { skip, take, sort, order, q, role, status } = opts;
+
+    const qb = this.usersRepository.createQueryBuilder('user');
+
+    // Поиск по имени/фамилии/email
+    if (q) {
+      qb.andWhere(
+        '(LOWER(user.first_name) LIKE LOWER(:q) OR LOWER(user.last_name) LIKE LOWER(:q) OR LOWER(user.email) LIKE LOWER(:q))',
+        { q: `%${q}%` },
+      );
+    }
+
+    // Фильтр по статусу (enum)
+    if (status) {
+      qb.andWhere('user.status = :status', { status });
+    }
+
+    // Фильтр по роли: roles — это text[], проверяем вхождение
+    if (role) {
+      qb.andWhere(':role = ANY(user.roles)', { role });
+    }
+
+    // Сортировка только по разрешённым колонкам (защита от инъекции/битых полей,
+    // напр. вычисляемого fullName с фронта, которого нет в таблице)
+    const allowedSort = [
+      'email',
+      'first_name',
+      'last_name',
+      'status',
+      'created_at',
+      'updated_at',
+    ];
+    const orderColumn = sort && allowedSort.includes(sort) ? sort : 'created_at';
+    const orderDir = order === 'ASC' ? 'ASC' : 'DESC';
+    qb.orderBy(`user.${orderColumn}`, orderDir);
+
+    qb.skip(skip ?? 0).take(take ?? 100);
+
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total };
   }
 
   async findOne(id: string) {
