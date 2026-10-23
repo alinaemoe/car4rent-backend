@@ -1,98 +1,59 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Car4Rent API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+**The backend of a full car-rental platform: roles, bookings, a financial ledger, document verification and 3D damage records.**
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## The Car4Rent system
 
-## Description
+| Repo | Role | Stack |
+|---|---|---|
+| **car4rent-backend** | REST API, auth, bookings, payments ledger, media | NestJS 11, TypeORM, PostgreSQL |
+| **car4rent-mobile** | Customer and car-owner app (Android / iOS) | Expo / React Native, Redux Toolkit, TanStack Query |
+| **car4rent-admin** | Back-office for managers | Refine 5, MUI 6, React Three Fiber |
+| **car4rent-landing** | Public marketing site and lead capture | React 19, Vite, i18next, Framer Motion |
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Car4Rent is a peer-to-peer and fleet **car rental platform** built as a diploma project: clients search
+and book cars, owners publish and manage theirs, and managers run the whole thing from the admin panel.
 
-## Project setup
+## What the API does
 
-```bash
-$ npm install
-```
+- **Auth with real-world details.** Email + OTP verification (6 digits, hashed, 15-minute expiry,
+  attempt limit), JWT access token (15 min) with a **rotating refresh token** (60 days), password
+  reset by OTP, bcrypt hashes. Global `JwtAuthGuard` and `RolesGuard` with `@Public()` / `@Roles()`
+  decorators; a user can hold several roles at once (`CLIENT`, `LESSOR`, `ADMIN`, `MANAGER`).
+- **Catalogue.** Cars with multilingual descriptions (`jsonb`), feature sets, images on Cloudinary,
+  pick-up locations, tiered discounts, visibility toggles and reviews.
+- **Rental lifecycle.** `CREATED -> APPROVED -> ACTIVE -> COMPLETED / CANCELED / OVERDUE` with fuel
+  levels, penalties and a scheduled job (`@nestjs/schedule`) that moves rentals through statuses.
+- **Damage records in 3D.** Each damage stores its type, repair cost, payment state, photo and the
+  **x / y / z coordinates on the car model**, rendered as pins in the admin panel.
+- **Financial ledger.** Transactions for rental payments, penalties and damage compensation with
+  system fee, lessor income, payout and deposit status; dashboard endpoints for stats.
+- **Document verification.** Passport and driver-licence uploads with `PENDING / VERIFIED / REJECTED`
+  and a rejection reason.
+- **Partnerships and leads.** Owner partnership requests and rental leads from the landing page.
+- **CMS-style content.** News, FAQ, translations, languages and settings, all multilingual.
+- **Safe defaults.** Global `ValidationPipe` (whitelist, forbid unknown fields, transform), Swagger
+  docs at `/api/docs`, 17 TypeORM entities, 20 unit-test files.
 
-## Compile and run the project
+## Stack
 
-```bash
-# development
-$ npm run start
+NestJS 11, TypeORM, PostgreSQL, Passport-JWT, class-validator, Multer + Cloudinary, Nodemailer,
+`@nestjs/schedule`, Swagger, Docker Compose.
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
+## Run
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cp .env.example .env     # fill in DB, JWT, Cloudinary and mail settings
+npm install
+npm run start:dev        # http://localhost:3000, Swagger at /api/docs
 ```
 
-## Deployment
+All secrets come from environment variables (see `.env.example`). `DEMO_MASTER_OTP` is an
+optional demo-only OTP that is accepted instead of the emailed code - leave it empty in production.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## Project layout
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+`src/auth`, `users`, `cars`, `rentals` (+ cron), `car-damages`, `transactions`,
+`user-documents`, `locations`, `features`, `reviews`, `news`, `faq`, `languages`,
+`translations`, `settings`, `partnership-requests`, `rental-leads`, `dashboard`,
+`cloudinary`, `email`, `entities`, `migrations`.
