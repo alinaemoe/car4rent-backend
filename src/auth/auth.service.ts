@@ -20,11 +20,14 @@ import { UserStatus } from 'src/entities/user.entity';
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  // ⚠️ ВРЕМЕННО (защита диплома): хостинг блокирует SMTP, письма с OTP не доходят.
-  // Этот мастер-код ВСЕГДА принимается при верификации email и сбросе пароля,
-  // в обход проверки реального кода из письма. Локально письма уходят как обычно,
-  // и реальный код тоже продолжает работать. На защите вводим именно его.
-  private readonly MASTER_OTP = 'REMOVED';
+  // Optional demo OTP (set DEMO_MASTER_OTP in .env). Accepted in place of the emailed code
+  // for email verification and password reset - meant for demos where SMTP is unavailable.
+  // Leave it unset in any real deployment: with no value the bypass is disabled.
+  private readonly MASTER_OTP = process.env.DEMO_MASTER_OTP ?? '';
+
+  private isMasterOtp(otp: string): boolean {
+    return this.MASTER_OTP.length > 0 && otp === this.MASTER_OTP;
+  }
 
   constructor(
     private usersService: UsersService,
@@ -149,9 +152,8 @@ export class AuthService {
     // 4. Сохраняем код. Письмо шлём в фоне (fire-and-forget): на проде SMTP
     //    заблокирован, поэтому НЕ ждём отправку и НЕ даём её фейлу сломать
     //    регистрацию. Мобилка сразу получает успех и переходит к вводу OTP.
-    //    На защите вводится мастер-код, локально приходит реальное письмо.
-    await this.usersService.updateOtpDetails(targetUserId, otpHash, expiresAt);
-    this.logger.log(`🔑 OTP для ${dto.email}: ${otp} (мастер-код: ${this.MASTER_OTP})`);
+        await this.usersService.updateOtpDetails(targetUserId, otpHash, expiresAt);
+    
     void this.emailService.sendEmailVerificationOTP(dto.email, otp);
 
     return { message: 'Код подтверждения отправлен на почту' };
@@ -168,8 +170,8 @@ export class AuthService {
       throw new BadRequestException('Email уже подтвержден');
     }
 
-    // ⚠️ ВРЕМЕННО: мастер-код проходит без проверки срока и хэша (SMTP заблокирован).
-    if (otp !== this.MASTER_OTP) {
+    // The optional demo OTP skips the expiry and hash checks.
+    if (!this.isMasterOtp(otp)) {
       if (!user.otp_expires_at || user.otp_expires_at < new Date()) {
         throw new BadRequestException('Код подтверждения истек');
       }
@@ -233,7 +235,7 @@ export class AuthService {
 
     await this.usersService.updateOtpDetails(user.id, otpHash, expiresAt);
     // Отправка в фоне (см. register). Фейл SMTP не ломает ответ.
-    this.logger.log(`🔑 Повторный OTP для ${user.email}: ${newOtp} (мастер: ${this.MASTER_OTP})`);
+    
     void this.emailService.sendEmailVerificationOTP(user.email, newOtp);
 
     return { message: 'Новый код подтверждения отправлен на почту' };
@@ -259,7 +261,7 @@ export class AuthService {
       0,
     );
     // Отправка в фоне (см. register). Фейл SMTP не ломает ответ.
-    this.logger.log(`🔑 OTP сброса для ${user.email}: ${otp} (мастер: ${this.MASTER_OTP})`);
+    
     void this.emailService.sendPasswordResetOTP(user.email, otp);
 
     return { message: 'Код для сброса пароля отправлен на почту' };
@@ -271,8 +273,8 @@ export class AuthService {
       throw new NotFoundException('Пользователь с таким email не найден');
     }
 
-    // ⚠️ ВРЕМЕННО: мастер-код проходит без проверок (SMTP заблокирован).
-    if (otp !== this.MASTER_OTP) {
+    // The optional demo OTP skips the checks below.
+    if (!this.isMasterOtp(otp)) {
       if (!user.reset_password_otp_hash) {
         throw new BadRequestException('Код для сброса не был запрошен');
       }

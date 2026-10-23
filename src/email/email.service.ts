@@ -5,18 +5,17 @@ import * as nodemailer from 'nodemailer';
 export class EmailService {
   private transporter;
   private readonly logger = new Logger(EmailService.name);
+  private readonly from = `"Car4Rent" <${process.env.MAIL_FROM ?? process.env.MAIL_USER ?? 'no-reply@localhost'}>`;
 
   constructor() {
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'redacted@example.com',
-        pass: 'REMOVED',
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
       },
-      // ⚠️ ВРЕМЕННО: хостинг (Timeweb) блокирует исходящие SMTP-порты 465/587,
-      // поэтому на проде письмо не уходит. Жёсткие таймауты, чтобы попытка
-      // отправки падала за секунды, а не висела минутами и не тормозила запрос.
-      // Локально (порты открыты) письмо отправляется как обычно.
+      // Short timeouts: some hosts block outgoing SMTP ports, and a send attempt
+      // should fail in seconds instead of hanging the request.
       connectionTimeout: 7000,
       greetingTimeout: 7000,
       socketTimeout: 7000,
@@ -26,7 +25,7 @@ export class EmailService {
   async sendEmailVerificationOTP(email: string, otp: string): Promise<void> {
     try {
       await this.transporter.sendMail({
-        from: '"Car4Rent" <car4rent.app@gmail.com>',
+        from: this.from,
         to: email,
         subject: 'Подтверждение регистрации | Car4Rent',
         html: this.buildOtpEmailHtml({
@@ -37,13 +36,12 @@ export class EmailService {
             'Если вы не регистрировались в Car4Rent, просто проигнорируйте это письмо.',
         }),
       });
-      this.logger.log(`📧 OTP отправлен на ${email}, ${otp}`);
+      this.logger.log(`Verification OTP sent to ${email}`);
     } catch (error) {
-      // ⚠️ ВРЕМЕННО: SMTP-порты заблокированы хостингом. Фейл отправки НЕ должен
-      // ронять регистрацию — гасим ошибку и только логируем. Код всё равно
-      // сохранён в БД, а на защите используется мастер-код (см. AuthService).
+      // A failed send must not break registration: the code is already stored,
+      // so we only log the failure (never the code itself).
       this.logger.warn(
-        `⚠️ Email не отправлен (SMTP недоступен) на ${email}. OTP=${otp}. ${error?.message ?? ''}`,
+        `Verification email to ${email} was not sent: ${error?.message ?? ''}`,
       );
     }
   }
@@ -51,7 +49,7 @@ export class EmailService {
   async sendPasswordResetOTP(email: string, otp: string): Promise<void> {
     try {
       await this.transporter.sendMail({
-        from: '"Car4Rent" <твоя_почта@gmail.com>',
+        from: this.from,
         to: email,
         subject: 'Восстановление пароля | Car4Rent',
         html: this.buildOtpEmailHtml({
@@ -62,11 +60,11 @@ export class EmailService {
             'Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо.',
         }),
       });
-      this.logger.log(`📧 Password reset OTP отправлен на ${email}, ${otp}`);
+      this.logger.log(`Password reset OTP sent to ${email}`);
     } catch (error) {
-      // ⚠️ ВРЕМЕННО: см. комментарий выше — фейл отправки не ломает сброс пароля.
+      // Same as above: a failed send does not break the reset flow.
       this.logger.warn(
-        `⚠️ Email сброса не отправлен (SMTP недоступен) на ${email}. OTP=${otp}. ${error?.message ?? ''}`,
+        `Password reset email to ${email} was not sent: ${error?.message ?? ''}`,
       );
     }
   }
